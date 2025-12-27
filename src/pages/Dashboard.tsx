@@ -10,7 +10,7 @@ import type { DownloadMode, VideoQuality, AudioFormat, PlaylistMode, PlaylistVid
 import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-
+import ScrollingTitle from '@/components/ScrollingTitle';
 import {
   Select,
   SelectTrigger,
@@ -340,12 +340,9 @@ export default function Dashboard() {
         <div className="card-elevated p-4 flex gap-4">
           <img src={currentMetadata.thumbnail} alt="" className="w-32 h-20 object-cover rounded-lg" />
           <div className="flex-1 min-w-0">
-            <h3
-              className="font-semibold truncate"
-              title={currentMetadata.title}
-            >
+            <ScrollingTitle className="font-semibold" title={currentMetadata.title}>
               {currentMetadata.title}
-            </h3>
+            </ScrollingTitle>
             <p className="text-sm text-muted-foreground">{currentMetadata.channel}</p>
             <p className="text-xs text-primary mt-1">
               {currentMetadata.duration}
