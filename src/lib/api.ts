@@ -90,3 +90,13 @@ export async function resumeDownload(jobId: string): Promise<{ success: boolean 
   }
   return response.json();
 }
+
+export async function cancelDownload(jobId: string): Promise<{ success: boolean }> {
+  const response = await fetch(`/api/download/cancel/${jobId}`, {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error("Failed to cancel download");
+  }
+  return response.json();
+}

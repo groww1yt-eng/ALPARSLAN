@@ -78,12 +78,12 @@ app.post('/api/download', async (req: Request, res: Response) => {
 app.get('/api/download/progress/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
   const progress = getDownloadProgress(jobId);
-  
+
   if (!progress) {
     res.status(404).json({ error: 'Download not found' });
     return;
   }
-  
+
   res.json(progress);
 });
 
@@ -91,25 +91,45 @@ app.get('/api/download/progress/:jobId', (req: Request, res: Response) => {
 app.post('/api/download/pause/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
   const success = pauseDownload(jobId);
-  
+
   if (!success) {
     res.status(404).json({ error: 'Download not found' });
     return;
   }
-  
+
   res.json({ success: true });
 });
 
 // Resume download
-app.post('/api/download/resume/:jobId', (req: Request, res: Response) => {
+app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
   const { jobId } = req.params;
-  const success = resumeDownload(jobId);
-  
+  const options = resumeDownload(jobId);
+
+  if (!options) {
+    res.status(404).json({ error: 'Download not found or cannot be resumed' });
+    return;
+  }
+
+  // Restart the download process in background (fire and forget for this request)
+  // The frontend will poll for progress
+  downloadVideo(options).catch(err => {
+    console.error(`Resumed download failed [${jobId}]:`, err);
+  });
+
+  res.json({ success: true });
+});
+
+// Cancel download
+app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
+  const { jobId } = req.params;
+  const { cancelDownload } = require('./src/server/downloadManager.js');
+  const success = cancelDownload(jobId);
+
   if (!success) {
     res.status(404).json({ error: 'Download not found' });
     return;
   }
-  
+
   res.json({ success: true });
 });
 
