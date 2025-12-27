@@ -17,29 +17,29 @@ export default function ActiveJobs() {
           let simState = simulationRef.current.get(job.id);
           if (!simState) {
             simState = {
-              downloadedMB: 0,
+              downloadedMB: parseFloat(job.downloadedSize?.replace(/[^\d.]/g, '') || '0'),
               speedMBps: 1.5 + Math.random() * 2.5, // 1.5-4 MB/s initial speed
             };
             simulationRef.current.set(job.id, simState);
           }
 
           const totalSizeMB = parseFloat(job.fileSize?.replace(/[^\d.]/g, '') || '100');
-          
+
           // Vary speed slightly for realism (±0.3 MB/s)
           simState.speedMBps = Math.max(0.5, Math.min(5, simState.speedMBps + (Math.random() - 0.5) * 0.6));
-          
+
           // Download chunk (speed per second)
           const downloadChunk = simState.speedMBps;
           simState.downloadedMB = Math.min(totalSizeMB, simState.downloadedMB + downloadChunk);
-          
+
           const progress = Math.min(100, (simState.downloadedMB / totalSizeMB) * 100);
           const remainingMB = totalSizeMB - simState.downloadedMB;
           const etaSeconds = Math.ceil(remainingMB / simState.speedMBps);
-          
+
           // Format ETA
           const etaMinutes = Math.floor(etaSeconds / 60);
           const etaSecs = etaSeconds % 60;
-          const etaStr = etaMinutes > 0 
+          const etaStr = etaMinutes > 0
             ? `${etaMinutes}:${etaSecs.toString().padStart(2, '0')}`
             : `0:${etaSecs.toString().padStart(2, '0')}`;
 
@@ -47,7 +47,7 @@ export default function ActiveJobs() {
           if (progress >= 100) {
             // Clean up simulation state
             simulationRef.current.delete(job.id);
-            
+
             updateJob(job.id, {
               progress: 100,
               downloadedSize: job.fileSize,

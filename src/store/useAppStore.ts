@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { 
-  AppSettings, 
-  DownloadJob, 
-  HistoryItem, 
+import type {
+  AppSettings,
+  DownloadJob,
+  HistoryItem,
   Notification,
-  VideoMetadata 
+  VideoMetadata
 } from '@/types';
 
 type Theme = 'dark' | 'light';
@@ -148,7 +148,19 @@ export const useAppStore = create<AppState>()(
         theme: state.theme,
         settings: state.settings,
         history: state.history,
+        jobs: state.jobs,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Reset any 'active' jobs to paused on reload
+          state.jobs = state.jobs.map((job) => {
+            if (['downloading', 'queued', 'waiting'].includes(job.status)) {
+              return { ...job, status: 'paused' };
+            }
+            return job;
+          });
+        }
+      },
       migrate: (persistedState: any, version: number) => {
         // Migrate old data to new structure
         if (persistedState && persistedState.settings && !persistedState.settings.namingTemplates) {
