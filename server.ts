@@ -52,9 +52,10 @@ app.post('/api/download', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get file size first (for progress tracking)
-    const fileSize = await getFileSize(url, mode, quality);
+    // Get file size first (for progress tracking) - OPTIMIZATION: REMOVED for speed
+    // const fileSize = await getFileSize(url, mode, quality);
 
+    // Pass 0 as fileSize, downloadVideo will parse it from yt-dlp output
     const result = await downloadVideo({
       url,
       videoId,
@@ -63,12 +64,19 @@ app.post('/api/download', async (req: Request, res: Response) => {
       mode,
       quality,
       format,
-      fileSize,
+      fileSize: 0,
     });
 
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+
+    // Handle expected interruptions (Pause/Cancel) gracefuly
+    if (message === 'Download paused' || message === 'Download canceled') {
+      res.json({ success: true, status: message.toLowerCase().replace('download ', '') });
+      return;
+    }
+
     console.error('Error downloading video:', message);
     res.status(500).json({ error: message });
   }

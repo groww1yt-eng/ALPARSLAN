@@ -1,7 +1,14 @@
 import { execSync, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { registerDownload, updateProgress, completeDownload, failDownload } from './downloadManager.js';
+import {
+  registerDownload,
+  updateProgress,
+  completeDownload,
+  failDownload,
+  setDownloadProcess,
+  getDownloadProgress
+} from './downloadManager.js';
 
 export interface DownloadResult {
   success: boolean;
@@ -167,10 +174,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     const pythonProcess = spawn('python', ['-m', 'yt_dlp', ...ytdlpArgs]);
 
     if (jobId) {
-      // Store process reference for pausing/canceling
-      // Use a dynamic import or cast to avoiding circular dependency issues if any,
-      // but here we just import the function from manager
-      const { setDownloadProcess } = require('./downloadManager.js');
+      // Store process reference
       setDownloadProcess(jobId, pythonProcess);
     }
 
@@ -192,45 +196,12 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
           const etaMatch = line.match(/ETA\s+(\d{2}:\d{2}(:\d{2})?)/);
 
           if (jobId) {
-            const { updateProgress } = require('./downloadManager.js');
-
             // We rely on what yt-dlp tells us
-            // Percentage
-            const percentage = percentMatch ? parseFloat(percentMatch[1]) : 0;
-
-            // Total Size
-            // Note: We might have an initial totalBytes from options, but yt-dlp is more accurate
-            // We need to parse units properly to get bytes
-
-            // Speed
-            // ETA (we can pass string or parse to seconds)
-
-            // Since our manager expects bytes, we'll need a helper to parsing units if we want precision
-            // For now, let's trust the percentage and update downloadedBytes based on percentage * known total
-
-            // Actually, best to just pass what we can or rely on percentage
-            // But the manager expects bytes to calculate its own percentage/eta.
-            // Let's reverse engineer:
-            // We can update the ActiveDownload properties directly if we expose a setter, 
-            // or just update what we can. 
-
-            // Simplified parsing for now:
-            // We only update progress if we have a valid percentage
-
-            // Let's assume we want to update the manager with raw data found here
-            // But the manager calculates its own speed/eta.
-            // The manager's calculation is better for smooth UI if we feed it downloadedBytes regularly.
-            // So we need to parse downloaded size or calculate it.
 
             if (sizeMatch && percentMatch) {
               const totalStr = sizeMatch[1];
               const unit = sizeMatch[2];
               let totalBytes = parseFloat(totalStr);
-
-              const units: Record<string, number> = {
-                'KiB': 1024, 'MiB': 1024 ** 2, 'GiB': 1024 ** 3, 'TiB': 1024 ** 4,
-                'K': 1000, 'M': 1000 ** 2, 'G': 1000 ** 3
-              };
 
               // Simple unit check
               if (unit.includes('Ki') || unit.includes('KiB')) totalBytes *= 1024;
@@ -241,15 +212,6 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               const downloadedBytes = (totalBytes * percentage) / 100;
 
               updateProgress(jobId, downloadedBytes);
-
-              // Also update totalBytes in manager if it changed or wasn't set
-              // (Needs a new export in manager or just rely on constructor)
-              const { activeDownloads } = require('./downloadManager.js'); // Hacky access? No, not exported.
-              // We'll stick to updateProgress. 
-              // Ideally we should update totalBytes too if it differs.
-              // But updateProgress only takes downloadedBytes.
-              // Let's modify updateProgress to optionally take totalBytes?
-              // For now, assume totalBytes from options/startup is close enough or updated at end.
             }
           }
         }
@@ -281,10 +243,6 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
           }
 
           if (downloadedFile) {
-            // ... (duplicate handling logic from before) ...
-            // For brevity, let's just use the file as is for now, or copy paste the logic.
-            // Re-implementing simplified duplicate logic for stability:
-
             const originalName = path.basename(downloadedFile);
             const sanitized = sanitizeFilename(originalName);
             const sanitizedPath = path.join(outputFolder, sanitized);
@@ -322,39 +280,13 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       } else {
         const msg = 'Process exited with code ' + code;
         if (jobId) {
-          // Check if it was manually cancelled (killed)
-          // The manager sets status to canceled/paused before killing
-          // We can check status in manager
-          const { activeDownloads } = require('./downloadManager.js');
-          // Cannot access internal map.
-          // We'll rely on the signal.
-          // If code is null (killed by signal), it might be pause or cancel.
-          // If code is non-zero, it's an error.
+          // Check if it was manually cancelled/paused
+          const progress = getDownloadProgress(jobId);
+          if (progress && (progress.status === 'paused' || progress.status === 'canceled')) {
+            reject(new Error(progress.status === 'paused' ? 'Download paused' : 'Download canceled'));
+            return;
+          }
         }
-
-        // If it was SIGKILL'd by us, code is usually null or 137? 
-        // We shouldn't failDownload if it was paused/canceled intentionally.
-        // But since we can't easily check 'why' it was killed here without state access:
-        // We'll trust that if status is already 'paused' or 'canceled', we don't overwrite it with 'failed'.
-
-        // We need to implement a 'safe' fail that checks current status.
-        // For now, let's just call failDownload. The manager functions usually explicitly set status.
-        // So we should ONLY call fail if the process crashed unexpectedly.
-
-        // Let's resolve/reject based on expectation.
-        // If we paused, this promise hangs? No, we need to handle that.
-        // Actually, if we kill the process, 'close' fires. 
-        // If we want 'Pause' to not be an error in the logs, we need to handle it.
-
-        // However, the helper functions `pauseDownload` and `cancelDownload` kill the process.
-        // The frontend expects the /api/download request to finish?
-        // Usually long-polling or just return immediately? 
-        // The original implementation waited for blocks using execSync.
-        // Now `downloadVideo` returns a contract Promise.
-        // If we pause, does this Promise resolve or reject?
-        // It should probably Reject or Resolve with a 'Paused' status if generic.
-        // But `DownloadResult` expects filePath.
-        // So for Pause/Cancel, we likely Reject.
 
         const msg2 = `Download interrupted (code ${code})`;
         reject(new Error(msg2));

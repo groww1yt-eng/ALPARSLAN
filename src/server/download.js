@@ -1,7 +1,7 @@
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { registerDownload, updateProgress, completeDownload, failDownload } from './downloadManager.js';
+import { registerDownload, updateProgress, completeDownload, failDownload, setDownloadProcess, getDownloadProgress } from './downloadManager.js';
 // Get total file size using yt-dlp
 export async function getFileSize(url, mode, quality = '1080p') {
     try {
@@ -92,7 +92,11 @@ export async function downloadVideo(options) {
     if (!fs.existsSync(outputFolder)) {
         fs.mkdirSync(outputFolder, { recursive: true });
     }
-    try {
+    // Register with manager immediately
+    if (jobId) {
+        registerDownload(jobId, options);
+    }
+    return new Promise((resolve, reject) => {
         let ytdlpArgs = [];
         if (mode === 'audio') {
             ytdlpArgs.push('-x'); // Extract audio
@@ -118,134 +122,129 @@ export async function downloadVideo(options) {
         const outputTemplate = path.join(outputFolder, '%(title)s.%(ext)s');
         ytdlpArgs.push('-o', outputTemplate);
         ytdlpArgs.push('--no-warnings');
+        ytdlpArgs.push('--newline'); // Important for parsing progress
         // URL
         ytdlpArgs.push(url);
-        // Build command
-        const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
-        console.log(`Starting download: ${url}`);
+        console.log(`Starting download (spawn): ${url}`);
         console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);
-        // Register download with manager - use the actual estimated file size (in bytes)
+        // Spawn process
+        const pythonProcess = spawn('python', ['-m', 'yt_dlp', ...ytdlpArgs]);
         if (jobId) {
-            registerDownload(jobId, videoId, path.join(outputFolder, 'downloading'), fileSize || 0);
+            // Store process reference
+            setDownloadProcess(jobId, pythonProcess);
         }
-        // Start progress tracking in background while download runs
-        let progressInterval = null;
-        if (jobId && fileSize > 0) {
-            progressInterval = setInterval(() => {
-                try {
-                    // Check for downloading files in the output folder
-                    const files = fs.readdirSync(outputFolder);
-                    for (const file of files) {
-                        const filePath = path.join(outputFolder, file);
-                        const stats = fs.statSync(filePath);
-                        if (stats.isFile() && stats.mtimeMs > Date.now() - 30000) { // Recently modified (within 30 sec)
-                            // Update progress based on actual bytes downloaded
-                            updateProgress(jobId, stats.size);
+        let downloadOutput = '';
+        pythonProcess.stdout.on('data', (data) => {
+            const lines = data.toString().split('\n');
+            for (const line of lines) {
+                if (!line.trim())
+                    continue;
+                console.log(`[yt-dlp ${jobId}] ${line.trim()}`);
+                // Parse progress
+                // [download]  12.3% of  100.00MiB at  2.50MiB/s ETA 00:35
+                if (line.includes('[download]') && line.includes('%')) {
+                    const percentMatch = line.match(/(\d+\.?\d*)%/);
+                    const sizeMatch = line.match(/of\s+~?(\d+\.?\d*)([KMGTP]?i?B)/i);
+                    const speedMatch = line.match(/at\s+(\d+\.?\d*)([KMGTP]?i?B)\/s/i);
+                    const etaMatch = line.match(/ETA\s+(\d{2}:\d{2}(:\d{2})?)/);
+                    if (jobId) {
+                        // We rely on what yt-dlp tells us
+                        if (sizeMatch && percentMatch) {
+                            const totalStr = sizeMatch[1];
+                            const unit = sizeMatch[2];
+                            let totalBytes = parseFloat(totalStr);
+                            // Simple unit check
+                            if (unit.includes('Ki') || unit.includes('KiB'))
+                                totalBytes *= 1024;
+                            else if (unit.includes('Mi') || unit.includes('MiB'))
+                                totalBytes *= 1024 ** 2;
+                            else if (unit.includes('Gi') || unit.includes('GiB'))
+                                totalBytes *= 1024 ** 3;
+                            const percentage = parseFloat(percentMatch[1]);
+                            const downloadedBytes = (totalBytes * percentage) / 100;
+                            updateProgress(jobId, downloadedBytes);
                         }
                     }
                 }
-                catch (err) {
-                    // Silently fail, progress update is best-effort
-                }
-            }, 500); // Check every 500ms
-        }
-        // Execute download synchronously (blocking, but reliable)
-        execSync(command, {
-            encoding: 'utf-8',
-            maxBuffer: 50 * 1024 * 1024,
-            stdio: ['pipe', 'pipe', 'pipe'],
-        });
-        // Stop progress tracking
-        if (progressInterval) {
-            clearInterval(progressInterval);
-        }
-        console.log('✅ Download Completed Successfully');
-        // Find the downloaded file and apply duplicate handling
-        const files = fs.readdirSync(outputFolder);
-        let downloadedFile = null;
-        // Get the most recently modified file
-        let latestTime = 0;
-        for (const file of files) {
-            const filePath = path.join(outputFolder, file);
-            const stats = fs.statSync(filePath);
-            if (stats.isFile() && stats.mtimeMs > latestTime) {
-                latestTime = stats.mtimeMs;
-                downloadedFile = filePath;
             }
-        }
-        if (downloadedFile) {
-            // Sanitize and apply duplicate handling
-            const originalName = path.basename(downloadedFile);
-            const sanitized = sanitizeFilename(originalName);
-            const sanitizedPath = path.join(outputFolder, sanitized);
-            let finalPath = downloadedFile;
-            // Check if we need to rename due to sanitization
-            if (sanitized !== originalName) {
-                // File needs sanitization - check if sanitized version already exists
-                if (fs.existsSync(sanitizedPath) && sanitizedPath !== downloadedFile) {
-                    // Get unique name for the sanitized version
-                    const uniquePath = getUniqueFilename(sanitizedPath);
-                    fs.renameSync(downloadedFile, uniquePath);
-                    console.log(`Renamed file due to sanitization: ${originalName} -> ${path.basename(uniquePath)}`);
-                    finalPath = uniquePath;
+        });
+        pythonProcess.stderr.on('data', (data) => {
+            console.error(`[yt-dlp error] ${data.toString()}`);
+        });
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                // Success
+                console.log('✅ Download process completed');
+                // Find the file (reuse existing logic)
+                try {
+                    const files = fs.readdirSync(outputFolder);
+                    let downloadedFile = null;
+                    let latestTime = 0;
+                    for (const file of files) {
+                        const filePath = path.join(outputFolder, file);
+                        const stats = fs.statSync(filePath);
+                        if (stats.isFile() && stats.mtimeMs > latestTime) {
+                            latestTime = stats.mtimeMs;
+                            downloadedFile = filePath;
+                        }
+                    }
+                    if (downloadedFile) {
+                        const originalName = path.basename(downloadedFile);
+                        const sanitized = sanitizeFilename(originalName);
+                        const sanitizedPath = path.join(outputFolder, sanitized);
+                        let finalPath = downloadedFile;
+                        if (sanitized !== originalName) {
+                            // Simple rename
+                            if (!fs.existsSync(sanitizedPath)) {
+                                fs.renameSync(downloadedFile, sanitizedPath);
+                                finalPath = sanitizedPath;
+                            }
+                        }
+                        const stats = fs.statSync(finalPath);
+                        if (jobId) {
+                            completeDownload(jobId, stats.size);
+                        }
+                        resolve({
+                            success: true,
+                            filePath: finalPath,
+                            fileName: path.basename(finalPath),
+                            fileSize: `${(stats.size / (1024 * 1024)).toFixed(2)} MB`
+                        });
+                    }
+                    else {
+                        if (jobId)
+                            failDownload(jobId, 'No file found');
+                        reject(new Error('No file downloaded'));
+                    }
                 }
-                else {
-                    // Sanitized path doesn't conflict, just rename to it
-                    fs.renameSync(downloadedFile, sanitizedPath);
-                    console.log(`Renamed file: ${originalName} -> ${sanitized}`);
-                    finalPath = sanitizedPath;
+                catch (err) {
+                    const msg = err instanceof Error ? err.message : 'Unknown error';
+                    if (jobId)
+                        failDownload(jobId, msg);
+                    reject(err);
                 }
             }
             else {
-                // File doesn't need sanitization
-                // Only check for duplicates if previous numbered versions exist
-                const ext = path.extname(originalName);
-                const baseWithoutExt = originalName.slice(0, -ext.length);
-                // Check if ANY numbered version exists (like (2), (3), etc)
-                let foundExistingNumbers = false;
-                for (let i = 2; i <= 100; i++) {
-                    const numberedName = `${baseWithoutExt} (${i})${ext}`;
-                    if (fs.existsSync(path.join(outputFolder, numberedName))) {
-                        foundExistingNumbers = true;
-                        break;
+                const msg = 'Process exited with code ' + code;
+                if (jobId) {
+                    // Check if it was manually cancelled/paused
+                    const progress = getDownloadProgress(jobId);
+                    if (progress && (progress.status === 'paused' || progress.status === 'canceled')) {
+                        reject(new Error(progress.status === 'paused' ? 'Download paused' : 'Download canceled'));
+                        return;
                     }
                 }
-                // Only apply duplicate handling if numbered versions already exist
-                if (foundExistingNumbers) {
-                    const uniquePath = getUniqueFilename(downloadedFile);
-                    if (uniquePath !== downloadedFile) {
-                        fs.renameSync(downloadedFile, uniquePath);
-                        console.log(`Renamed file to avoid duplicate: ${originalName} -> ${path.basename(uniquePath)}`);
-                        finalPath = uniquePath;
-                    }
-                }
+                const msg2 = `Download interrupted (code ${code})`;
+                reject(new Error(msg2));
             }
-            // Get file size in MB
-            const stats = fs.statSync(finalPath);
-            const fileSizeBytes = stats.size;
-            const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
-            if (jobId) {
-                // Update the download manager with actual final file size
-                // This ensures progress bar reaches 100% with the real file size
-                completeDownload(jobId, fileSizeBytes);
-            }
-            return {
-                success: true,
-                filePath: finalPath,
-                fileName: path.basename(finalPath),
-                fileSize: `${fileSizeMB} MB`,
-            };
-        }
-        if (jobId)
-            failDownload(jobId);
-        throw new Error('No file was downloaded');
-    }
-    catch (error) {
-        const message = error instanceof Error ? error.message : 'Download failed';
-        if (jobId)
-            failDownload(jobId, message);
-        throw new Error(`Failed to download video: ${message}`);
-    }
+        });
+        pythonProcess.on('error', (err) => {
+            console.error('Spawn error:', err);
+            if (jobId)
+                failDownload(jobId, err.message);
+            reject(err);
+        });
+    });
 }
 export function getDownloadedFiles(outputFolder, videoTitle) {
     try {

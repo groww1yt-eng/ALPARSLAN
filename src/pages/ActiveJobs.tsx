@@ -113,7 +113,11 @@ export default function ActiveJobs() {
                   updateJob(job.id, { status: 'paused' });
                 }}
                 onResume={() => {
-                  resumeDownload(job.id).catch(err => console.error('Resume error:', err));
+                  resumeDownload(job.id).catch(err => {
+                    console.error('Resume error:', err);
+                    // If resume fails, maybe set back to paused? 
+                    // But for now just log it. 
+                  });
                   updateJob(job.id, { status: 'downloading' });
                 }}
                 onCancel={() => {

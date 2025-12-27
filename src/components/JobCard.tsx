@@ -1,10 +1,10 @@
 import type { DownloadJob } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
-import { 
-  Play, 
-  Pause, 
-  X, 
-  RotateCcw, 
+import {
+  Play,
+  Pause,
+  X,
+  RotateCcw,
   Trash2,
   CheckCircle,
   AlertCircle,
@@ -98,7 +98,7 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <ScrollingTitle className="font-medium text-sm" title={job.title}>
+          <ScrollingTitle className="font-medium text-sm">
             {job.title}
           </ScrollingTitle>
           <p className="text-xs text-muted-foreground truncate">{job.channel}</p>
@@ -118,8 +118,8 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
       {(job.status === 'downloading' || job.status === 'paused' || job.status === 'queued') && (
         <div className="space-y-2">
           <div className="relative">
-            <Progress 
-              value={job.progress} 
+            <Progress
+              value={job.progress}
               className={cn(
                 'h-2',
                 job.status === 'paused' && 'opacity-50'
@@ -131,7 +131,7 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
             <span className="flex items-center gap-2">
               {job.speed && <span>{job.speed}</span>}
               {job.eta && <span>ETA: {job.eta}</span>}
-              <span className="font-medium text-foreground">{job.progress}%</span>
+              <span className="font-medium text-foreground">{typeof job.progress === 'number' ? job.progress.toFixed(1) : job.progress}%</span>
             </span>
           </div>
         </div>
@@ -156,7 +156,7 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
             <span className="text-sm font-medium">Pause</span>
           </button>
         )}
-        
+
         {(job.status === 'paused' || job.status === 'waiting') && (
           <button
             onClick={onResume}

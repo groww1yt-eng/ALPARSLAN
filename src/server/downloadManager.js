@@ -1,3 +1,4 @@
+import path from 'path';
 const activeDownloads = new Map();
 export function getDownloadProgress(jobId) {
     const download = activeDownloads.get(jobId);
@@ -21,14 +22,14 @@ export function getDownloadProgress(jobId) {
     }
     return { ...download.progress };
 }
-export function registerDownload(jobId, videoId, filePath, totalBytes) {
+export function registerDownload(jobId, options) {
     const now = Date.now();
     activeDownloads.set(jobId, {
-        videoId,
+        videoId: options.videoId,
         process: null,
         isPaused: false,
         progress: {
-            totalBytes,
+            totalBytes: options.fileSize || 0,
             downloadedBytes: 0,
             percentage: 0,
             speed: 0,
@@ -38,7 +39,8 @@ export function registerDownload(jobId, videoId, filePath, totalBytes) {
         startTime: now,
         downloadedBytesAtLastCheck: 0,
         lastCheckTime: now,
-        filePath,
+        filePath: path.join(options.outputFolder, 'downloading'),
+        options,
     });
 }
 export function updateProgress(jobId, downloadedBytes) {
@@ -81,35 +83,47 @@ export function failDownload(jobId, error) {
 }
 export function pauseDownload(jobId) {
     const download = activeDownloads.get(jobId);
-    if (!download || !download.process)
+    if (!download)
         return false;
     download.isPaused = true;
     download.progress.status = 'paused';
-    // Send SIGSTOP to pause the process
-    try {
-        download.process.kill('SIGSTOP');
-        return true;
+    // Kill the process to truly stop network usage
+    // The state allows us to resume later by restarting
+    if (download.process) {
+        try {
+            download.process.kill('SIGKILL');
+            download.process = null;
+        }
+        catch (error) {
+            console.error('Error killing process for pause:', error);
+        }
     }
-    catch (error) {
-        console.error('Error pausing download:', error);
-        return false;
-    }
+    return true;
 }
 export function resumeDownload(jobId) {
     const download = activeDownloads.get(jobId);
-    if (!download || !download.process)
-        return false;
+    if (!download)
+        return null;
     download.isPaused = false;
     download.progress.status = 'downloading';
-    // Send SIGCONT to resume the process
-    try {
-        download.process.kill('SIGCONT');
-        return true;
-    }
-    catch (error) {
-        console.error('Error resuming download:', error);
+    return download.options;
+}
+export function cancelDownload(jobId) {
+    const download = activeDownloads.get(jobId);
+    if (!download)
         return false;
+    download.progress.status = 'canceled';
+    if (download.process) {
+        try {
+            download.process.kill('SIGKILL');
+            download.process = null;
+        }
+        catch (error) {
+            console.error('Error killing process for cancel:', error);
+        }
     }
+    activeDownloads.delete(jobId);
+    return true;
 }
 export function removeDownload(jobId) {
     activeDownloads.delete(jobId);

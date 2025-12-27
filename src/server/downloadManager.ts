@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
-import type { DownloadOptions } from './download';
+import type { DownloadOptions } from './download.js';
 
 export interface DownloadProgress {
   totalBytes: number;

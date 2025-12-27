@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
-import { downloadVideo, getFileSize } from './src/server/download.js';
+import { downloadVideo } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload } from './src/server/downloadManager.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -43,8 +43,9 @@ app.post('/api/download', async (req, res) => {
             res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
             return;
         }
-        // Get file size first (for progress tracking)
-        const fileSize = await getFileSize(url, mode, quality);
+        // Get file size first (for progress tracking) - OPTIMIZATION: REMOVED for speed
+        // const fileSize = await getFileSize(url, mode, quality);
+        // Pass 0 as fileSize, downloadVideo will parse it from yt-dlp output
         const result = await downloadVideo({
             url,
             videoId,
@@ -53,12 +54,17 @@ app.post('/api/download', async (req, res) => {
             mode,
             quality,
             format,
-            fileSize,
+            fileSize: 0,
         });
         res.json(result);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
+        // Handle expected interruptions (Pause/Cancel) gracefuly
+        if (message === 'Download paused' || message === 'Download canceled') {
+            res.json({ success: true, status: message.toLowerCase().replace('download ', '') });
+            return;
+        }
         console.error('Error downloading video:', message);
         res.status(500).json({ error: message });
     }
@@ -84,9 +90,25 @@ app.post('/api/download/pause/:jobId', (req, res) => {
     res.json({ success: true });
 });
 // Resume download
-app.post('/api/download/resume/:jobId', (req, res) => {
+app.post('/api/download/resume/:jobId', async (req, res) => {
     const { jobId } = req.params;
-    const success = resumeDownload(jobId);
+    const options = resumeDownload(jobId);
+    if (!options) {
+        res.status(404).json({ error: 'Download not found or cannot be resumed' });
+        return;
+    }
+    // Restart the download process in background (fire and forget for this request)
+    // The frontend will poll for progress
+    downloadVideo(options).catch(err => {
+        console.error(`Resumed download failed [${jobId}]:`, err);
+    });
+    res.json({ success: true });
+});
+// Cancel download
+app.post('/api/download/cancel/:jobId', (req, res) => {
+    const { jobId } = req.params;
+    const { cancelDownload } = require('./src/server/downloadManager.js');
+    const success = cancelDownload(jobId);
     if (!success) {
         res.status(404).json({ error: 'Download not found' });
         return;
