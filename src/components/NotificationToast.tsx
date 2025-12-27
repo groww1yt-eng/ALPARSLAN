@@ -20,58 +20,51 @@ const colorMap = {
 export function NotificationToast() {
   const { notifications, removeNotification } = useAppStore();
 
-  // ✅ Persist timers across renders
-  const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const timers = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    notifications.forEach((notification) => {
-      // Clear existing timer
-      const existing = timersRef.current.get(notification.id);
-      if (existing) {
-        clearTimeout(existing);
-      }
+    notifications.forEach((n) => {
+      if (timers.current.has(n.id)) return;
 
-      const duration = notification.duration ?? 4000;
-      const timer = setTimeout(() => {
-        removeNotification(notification.id);
-        timersRef.current.delete(notification.id);
-      }, duration);
+      const timeoutId = window.setTimeout(() => {
+        removeNotification(n.id);
+        timers.current.delete(n.id);
+      }, n.duration ?? 4000);
 
-      timersRef.current.set(notification.id, timer);
+      timers.current.set(n.id, timeoutId);
     });
 
     return () => {
-      // Cleanup only on unmount
-      return () => {
-        timersRef.current.forEach(clearTimeout);
-        timersRef.current.clear();
-      };
+      // runs ONLY on unmount
+      timers.current.forEach((id) => clearTimeout(id));
+      timers.current.clear();
     };
   }, [notifications, removeNotification]);
 
-  if (notifications.length === 0) return null;
+  if (!notifications.length) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 p-3 sm:p-4 space-y-2 pointer-events-none flex flex-col items-center">
-      <div className="w-full max-w-sm sm:max-w-md flex flex-col gap-2">
-        {notifications.map((notification) => {
-          const Icon = iconMap[notification.type];
+    <div className="fixed top-0 inset-x-0 z-50 p-3 flex flex-col items-center pointer-events-none">
+      <div className="w-full max-w-md space-y-2">
+        {notifications.map((n) => {
+          const Icon = iconMap[n.type];
+
           return (
             <div
-              key={notification.id}
+              key={n.id}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-lg animate-slide-in-right pointer-events-auto mx-auto w-full',
-                colorMap[notification.type]
+                'flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-lg pointer-events-auto',
+                colorMap[n.type]
               )}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{notification.title}</p>
-                <p className="text-xs opacity-80 truncate">{notification.message}</p>
+              <Icon className="w-5 h-5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{n.title}</p>
+                <p className="text-xs opacity-80">{n.message}</p>
               </div>
               <button
-                onClick={() => removeNotification(notification.id)}
-                className="p-1 hover:bg-white/10 rounded-lg"
+                onClick={() => removeNotification(n.id)}
+                className="p-1 rounded-lg hover:bg-white/10"
               >
                 <X className="w-4 h-4" />
               </button>
