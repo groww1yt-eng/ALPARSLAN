@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,7 +11,7 @@ const iconMap = {
 };
 
 const colorMap = {
-  success: 'bg-success/10 border-success/30 text-success',
+  success:  'bg-success/10 border-success/30 text-success',
   error: 'bg-destructive/10 border-destructive/30 text-destructive',
   warning: 'bg-warning/10 border-warning/30 text-warning',
   info: 'bg-info/10 border-info/30 text-info',
@@ -20,50 +19,62 @@ const colorMap = {
 
 export function NotificationToast() {
   const { notifications, removeNotification } = useAppStore();
-  const timers = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    notifications.forEach((n) => {
-      if (timers.current.has(n.id)) return;
+    const timers = new Map<string, NodeJS.Timeout>();
 
-      const id = window.setTimeout(() => {
-        removeNotification(n.id);
-        timers.current.delete(n.id);
-      }, n.duration ?? 4000);
+    notifications.forEach((notification) => {
+      // Clear existing timer if it exists
+      if (timers. has(notification.id)) {
+        clearTimeout(timers.get(notification.id));
+      }
 
-      timers.current.set(n.id, id);
+      const duration = notification.duration || 4000;
+      const timer = setTimeout(() => {
+        removeNotification(notification.id);
+        timers.delete(notification.id);
+      }, duration);
+
+      timers.set(notification.id, timer);
     });
 
+    // Cleanup:  clear all timers when component unmounts or notifications change
     return () => {
-      timers.current.forEach(clearTimeout);
-      timers.current.clear();
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
     };
   }, [notifications, removeNotification]);
 
-  if (!notifications.length) return null;
-  if (typeof document === 'undefined') return null;
+  if (notifications. length === 0) return null;
 
-  return createPortal(
-    <div className="fixed top-0 inset-x-0 z-[9999] p-3 flex flex-col items-center pointer-events-none">
-      <div className="w-full max-w-md space-y-2">
-        {notifications.map((n) => {
-          const Icon = iconMap[n.type];
+  return (
+    <div 
+      className="fixed top-0 left-0 right-0 z-50 p-3 sm:p-4 space-y-2 pointer-events-none flex flex-col items-center"
+      style={{
+        // Ensure it's above everything on mobile
+        WebkitTransform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+      }}
+    >
+      <div className="w-full max-w-sm sm:max-w-md flex flex-col gap-2">
+        {notifications.map((notification) => {
+          const Icon = iconMap[notification.type];
           return (
             <div
-              key={n.id}
+              key={notification.id}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-lg pointer-events-auto',
-                colorMap[n.type]
+                'flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl border backdrop-blur-lg animate-slide-in-right pointer-events-auto mx-auto w-full',
+                colorMap[notification.type]
               )}
             >
-              <Icon className="w-5 h-5 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{n.title}</p>
-                <p className="text-xs opacity-80">{n.message}</p>
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm">{notification. title}</p>
+                <p className="text-xs opacity-80 truncate">{notification.message}</p>
               </div>
               <button
-                onClick={() => removeNotification(n.id)}
-                className="p-1 rounded-lg hover:bg-white/10"
+                onClick={() => removeNotification(notification.id)}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -71,7 +82,6 @@ export function NotificationToast() {
           );
         })}
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
