@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,18 +17,18 @@ const colorMap = {
   info: 'bg-info/10 border-info/30 text-info',
 };
 
+
 export function NotificationToast() {
   const { notifications, removeNotification } = useAppStore();
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
-    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const timers = timersRef.current;
 
     notifications.forEach((notification) => {
-      if (timers.has(notification.id)) {
-        clearTimeout(timers.get(notification.id)!);
-      }
+      if (timers.has(notification.id)) return;
 
-      const duration = notification.duration || 4000;
+      const duration = notification.duration ?? 4000;
 
       const timer = setTimeout(() => {
         removeNotification(notification.id);
@@ -43,6 +43,7 @@ export function NotificationToast() {
       timers.clear();
     };
   }, [notifications, removeNotification]);
+
 
   if (notifications.length === 0) return null;
 
