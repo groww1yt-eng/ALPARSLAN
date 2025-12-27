@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppStore } from '@/store/useAppStore';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,36 +20,34 @@ const colorMap = {
 
 export function NotificationToast() {
   const { notifications, removeNotification } = useAppStore();
-
   const timers = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     notifications.forEach((n) => {
       if (timers.current.has(n.id)) return;
 
-      const timeoutId = window.setTimeout(() => {
+      const id = window.setTimeout(() => {
         removeNotification(n.id);
         timers.current.delete(n.id);
       }, n.duration ?? 4000);
 
-      timers.current.set(n.id, timeoutId);
+      timers.current.set(n.id, id);
     });
 
     return () => {
-      // runs ONLY on unmount
-      timers.current.forEach((id) => clearTimeout(id));
+      timers.current.forEach(clearTimeout);
       timers.current.clear();
     };
   }, [notifications, removeNotification]);
 
   if (!notifications.length) return null;
+  if (typeof document === 'undefined') return null;
 
-  return (
-    <div className="fixed top-0 inset-x-0 z-50 p-3 flex flex-col items-center pointer-events-none">
+  return createPortal(
+    <div className="fixed top-0 inset-x-0 z-[9999] p-3 flex flex-col items-center pointer-events-none">
       <div className="w-full max-w-md space-y-2">
         {notifications.map((n) => {
           const Icon = iconMap[n.type];
-
           return (
             <div
               key={n.id}
@@ -72,6 +71,7 @@ export function NotificationToast() {
           );
         })}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
