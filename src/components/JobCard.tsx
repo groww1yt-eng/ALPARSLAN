@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import ScrollingTitle from './ScrollingTitle';
 
 interface JobCardProps {
   job: DownloadJob;
@@ -97,12 +98,9 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h4
-            className="font-medium text-sm truncate"
-            title={job.title}
-          >
+          <ScrollingTitle className="font-medium text-sm" title={job.title}>
             {job.title}
-          </h4>
+          </ScrollingTitle>
           <p className="text-xs text-muted-foreground truncate">{job.channel}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full', config.bgColor, config.color)}>
