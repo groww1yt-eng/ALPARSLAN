@@ -84,6 +84,14 @@ export default function Dashboard() {
     }
   };
 
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFetchMetadata();
+    }
+  };
+
   // Calculate file size based on mode, quality/format, and duration
   const getCalculatedFileSize = (): string => {
     if (!currentMetadata) return '0 MB';
@@ -320,6 +328,7 @@ export default function Dashboard() {
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="https://youtube.com/watch?v=..."
             className="flex-1"
           />
