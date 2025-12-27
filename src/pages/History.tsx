@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { History as HistoryIcon, Trash2, CheckCircle, Inbox } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import ScrollingTitle from '@/components/ScrollingTitle';
 
 export default function History() {
   const { history, removeFromHistory, clearHistory } = useAppStore();
@@ -37,12 +38,9 @@ export default function History() {
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <h4
-                  className="font-medium text-sm truncate"
-                  title={item.title}
-                >
+                <ScrollingTitle className="font-medium" title={item.title}>
                   {item.title}
-                </h4>
+                </ScrollingTitle>
                 <p className="text-xs text-muted-foreground">{item.channel}</p>
                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   <span>{item.fileSize}</span>
