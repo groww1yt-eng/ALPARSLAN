@@ -7,7 +7,9 @@ import {
   completeDownload,
   failDownload,
   setDownloadProcess,
-  getDownloadProgress
+  getDownloadProgress,
+  setStageTotalBytes,
+  setStage
 } from './downloadManager.js';
 
 export interface DownloadResult {
@@ -187,6 +189,22 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
         console.log(`[yt-dlp ${jobId}] ${line.trim()}`);
 
+        // Detect stage changes from destination lines
+        // [download] Destination: ...f398.mp4 = video
+        // [download] Destination: ...m4a = audio
+        if (jobId && line.includes('[download]') && line.includes('Destination:')) {
+          if (line.includes('.mp4') && !line.includes('.m4a')) {
+            setStage(jobId, 'video');
+          } else if (line.includes('.m4a') || line.includes('.mp3') || line.includes('.opus')) {
+            setStage(jobId, 'audio');
+          }
+        }
+
+        // Detect merge stage
+        if (jobId && line.includes('[Merger]')) {
+          setStage(jobId, 'merging');
+        }
+
         // Parse progress
         // [download]  12.3% of  100.00MiB at  2.50MiB/s ETA 00:35
         if (line.includes('[download]') && line.includes('%')) {
@@ -207,6 +225,9 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               if (unit.includes('Ki') || unit.includes('KiB')) totalBytes *= 1024;
               else if (unit.includes('Mi') || unit.includes('MiB')) totalBytes *= 1024 ** 2;
               else if (unit.includes('Gi') || unit.includes('GiB')) totalBytes *= 1024 ** 3;
+
+              // Set stage total bytes (this is additive across stages)
+              setStageTotalBytes(jobId, totalBytes);
 
               const percentage = parseFloat(percentMatch[1]);
               const downloadedBytes = (totalBytes * percentage) / 100;

@@ -64,7 +64,7 @@ export default function ActiveJobs() {
 
           updateJob(job.id, {
             progress: Math.min(100, Math.round(progress.percentage || 0)),
-            downloadedSize: `${downloadedMB.toFixed(1)} MB / ${totalMB.toFixed(1)} MB`,
+            downloadedSize: `${downloadedMB.toFixed(1)} MB`, // Only downloaded, not "X / Y"
             speed: `${speedMBps.toFixed(1)} MB/s`,
             eta: formatEta(progress.eta),
             fileSize: `${totalMB.toFixed(1)} MB`

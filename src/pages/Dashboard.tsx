@@ -563,10 +563,15 @@ export default function Dashboard() {
 
       {/* Start Download Button */}
       {currentMetadata && (
-        <button onClick={handleStartDownload} className="w-full btn-primary py-4 text-lg">
-          <Download className="w-5 h-5 mr-2 inline" /> Start Download
-        </button>
+        <Button
+          onClick={handleStartDownload}
+          className="w-full py-4 text-lg"
+        >
+          <Download className="mr-2 h-5 w-5" />
+          Start Download
+        </Button>
       )}
+
 
       {/* Playlist Selector Modal */}
       {showPlaylistSelector && currentMetadata?.videos && (

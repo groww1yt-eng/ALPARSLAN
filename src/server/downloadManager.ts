@@ -12,6 +12,12 @@ export interface DownloadProgress {
   eta: number; // seconds remaining
   status: 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
   error?: string;
+  // Multi-stage tracking
+  stage: 'video' | 'audio' | 'merging' | 'complete';
+  videoTotalBytes: number;    // Total bytes for video stage
+  audioTotalBytes: number;    // Total bytes for audio stage
+  videoDownloadedBytes: number; // Downloaded in video stage
+  audioDownloadedBytes: number; // Downloaded in audio stage
 }
 
 export interface ActiveDownload {
@@ -24,6 +30,7 @@ export interface ActiveDownload {
   lastCheckTime: number;
   filePath: string;
   options: DownloadOptions;
+  isResuming: boolean; // Flag to prevent re-registration on resume
 }
 
 const activeDownloads = new Map<string, ActiveDownload>();
@@ -56,6 +63,14 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
 }
 
 export function registerDownload(jobId: string, options: DownloadOptions): void {
+  // If already registered (resume case), don't reset progress
+  if (activeDownloads.has(jobId)) {
+    const existingDownload = activeDownloads.get(jobId)!;
+    existingDownload.isResuming = true;
+    existingDownload.progress.status = 'downloading';
+    return;
+  }
+
   const now = Date.now();
   activeDownloads.set(jobId, {
     videoId: options.videoId,
@@ -68,12 +83,18 @@ export function registerDownload(jobId: string, options: DownloadOptions): void 
       speed: 0,
       eta: 0,
       status: 'downloading',
+      stage: options.mode === 'video' ? 'video' : 'audio',
+      videoTotalBytes: 0,
+      audioTotalBytes: 0,
+      videoDownloadedBytes: 0,
+      audioDownloadedBytes: 0,
     },
     startTime: now,
     downloadedBytesAtLastCheck: 0,
     lastCheckTime: now,
     filePath: path.join(options.outputFolder, 'downloading'),
     options,
+    isResuming: false,
   });
 }
 
@@ -81,10 +102,61 @@ export function updateProgress(jobId: string, downloadedBytes: number): void {
   const download = activeDownloads.get(jobId);
   if (!download) return;
 
-  download.progress.downloadedBytes = downloadedBytes;
+  const stage = download.progress.stage;
+
+  // Update stage-specific downloaded bytes
+  if (stage === 'video') {
+    download.progress.videoDownloadedBytes = downloadedBytes;
+  } else if (stage === 'audio') {
+    download.progress.audioDownloadedBytes = downloadedBytes;
+  }
+
+  // Calculate total downloaded = completed stages + current stage progress
+  const totalDownloaded = download.progress.videoDownloadedBytes + download.progress.audioDownloadedBytes;
+  download.progress.downloadedBytes = totalDownloaded;
+
+  // Calculate combined total bytes
+  const combinedTotal = download.progress.videoTotalBytes + download.progress.audioTotalBytes;
+  download.progress.totalBytes = combinedTotal > 0 ? combinedTotal : download.progress.totalBytes;
 
   if (download.progress.totalBytes > 0) {
-    download.progress.percentage = (downloadedBytes / download.progress.totalBytes) * 100;
+    download.progress.percentage = (totalDownloaded / download.progress.totalBytes) * 100;
+  }
+}
+
+// Set total bytes for current stage (called when yt-dlp reports size)
+export function setStageTotalBytes(jobId: string, totalBytes: number): void {
+  const download = activeDownloads.get(jobId);
+  if (!download) return;
+
+  const stage = download.progress.stage;
+
+  if (stage === 'video') {
+    download.progress.videoTotalBytes = totalBytes;
+  } else if (stage === 'audio') {
+    download.progress.audioTotalBytes = totalBytes;
+  }
+
+  // Update combined total
+  const combinedTotal = download.progress.videoTotalBytes + download.progress.audioTotalBytes;
+  download.progress.totalBytes = combinedTotal;
+}
+
+// Transition to next stage (called when stage completes)
+export function setStage(jobId: string, stage: 'video' | 'audio' | 'merging' | 'complete'): void {
+  const download = activeDownloads.get(jobId);
+  if (!download) return;
+
+  // When transitioning FROM video TO audio, finalize video bytes
+  if (download.progress.stage === 'video' && stage === 'audio') {
+    download.progress.videoDownloadedBytes = download.progress.videoTotalBytes;
+  }
+
+  download.progress.stage = stage;
+
+  if (stage === 'merging') {
+    // During merge, show 100% or close to it
+    download.progress.percentage = 99;
   }
 }
 

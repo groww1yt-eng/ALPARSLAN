@@ -1,7 +1,7 @@
 import { execSync, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import { registerDownload, updateProgress, completeDownload, failDownload, setDownloadProcess, getDownloadProgress } from './downloadManager.js';
+import { registerDownload, updateProgress, completeDownload, failDownload, setDownloadProcess, getDownloadProgress, setStageTotalBytes, setStage } from './downloadManager.js';
 // Get total file size using yt-dlp
 export async function getFileSize(url, mode, quality = '1080p') {
     try {
@@ -140,6 +140,21 @@ export async function downloadVideo(options) {
                 if (!line.trim())
                     continue;
                 console.log(`[yt-dlp ${jobId}] ${line.trim()}`);
+                // Detect stage changes from destination lines
+                // [download] Destination: ...f398.mp4 = video
+                // [download] Destination: ...m4a = audio
+                if (jobId && line.includes('[download]') && line.includes('Destination:')) {
+                    if (line.includes('.mp4') && !line.includes('.m4a')) {
+                        setStage(jobId, 'video');
+                    }
+                    else if (line.includes('.m4a') || line.includes('.mp3') || line.includes('.opus')) {
+                        setStage(jobId, 'audio');
+                    }
+                }
+                // Detect merge stage
+                if (jobId && line.includes('[Merger]')) {
+                    setStage(jobId, 'merging');
+                }
                 // Parse progress
                 // [download]  12.3% of  100.00MiB at  2.50MiB/s ETA 00:35
                 if (line.includes('[download]') && line.includes('%')) {
@@ -160,6 +175,8 @@ export async function downloadVideo(options) {
                                 totalBytes *= 1024 ** 2;
                             else if (unit.includes('Gi') || unit.includes('GiB'))
                                 totalBytes *= 1024 ** 3;
+                            // Set stage total bytes (this is additive across stages)
+                            setStageTotalBytes(jobId, totalBytes);
                             const percentage = parseFloat(percentMatch[1]);
                             const downloadedBytes = (totalBytes * percentage) / 100;
                             updateProgress(jobId, downloadedBytes);

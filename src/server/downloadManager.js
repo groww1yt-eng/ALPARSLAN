@@ -23,6 +23,13 @@ export function getDownloadProgress(jobId) {
     return { ...download.progress };
 }
 export function registerDownload(jobId, options) {
+    // If already registered (resume case), don't reset progress
+    if (activeDownloads.has(jobId)) {
+        const existingDownload = activeDownloads.get(jobId);
+        existingDownload.isResuming = true;
+        existingDownload.progress.status = 'downloading';
+        return;
+    }
     const now = Date.now();
     activeDownloads.set(jobId, {
         videoId: options.videoId,
@@ -35,21 +42,71 @@ export function registerDownload(jobId, options) {
             speed: 0,
             eta: 0,
             status: 'downloading',
+            stage: options.mode === 'video' ? 'video' : 'audio',
+            videoTotalBytes: 0,
+            audioTotalBytes: 0,
+            videoDownloadedBytes: 0,
+            audioDownloadedBytes: 0,
         },
         startTime: now,
         downloadedBytesAtLastCheck: 0,
         lastCheckTime: now,
         filePath: path.join(options.outputFolder, 'downloading'),
         options,
+        isResuming: false,
     });
 }
 export function updateProgress(jobId, downloadedBytes) {
     const download = activeDownloads.get(jobId);
     if (!download)
         return;
-    download.progress.downloadedBytes = downloadedBytes;
+    const stage = download.progress.stage;
+    // Update stage-specific downloaded bytes
+    if (stage === 'video') {
+        download.progress.videoDownloadedBytes = downloadedBytes;
+    }
+    else if (stage === 'audio') {
+        download.progress.audioDownloadedBytes = downloadedBytes;
+    }
+    // Calculate total downloaded = completed stages + current stage progress
+    const totalDownloaded = download.progress.videoDownloadedBytes + download.progress.audioDownloadedBytes;
+    download.progress.downloadedBytes = totalDownloaded;
+    // Calculate combined total bytes
+    const combinedTotal = download.progress.videoTotalBytes + download.progress.audioTotalBytes;
+    download.progress.totalBytes = combinedTotal > 0 ? combinedTotal : download.progress.totalBytes;
     if (download.progress.totalBytes > 0) {
-        download.progress.percentage = (downloadedBytes / download.progress.totalBytes) * 100;
+        download.progress.percentage = (totalDownloaded / download.progress.totalBytes) * 100;
+    }
+}
+// Set total bytes for current stage (called when yt-dlp reports size)
+export function setStageTotalBytes(jobId, totalBytes) {
+    const download = activeDownloads.get(jobId);
+    if (!download)
+        return;
+    const stage = download.progress.stage;
+    if (stage === 'video') {
+        download.progress.videoTotalBytes = totalBytes;
+    }
+    else if (stage === 'audio') {
+        download.progress.audioTotalBytes = totalBytes;
+    }
+    // Update combined total
+    const combinedTotal = download.progress.videoTotalBytes + download.progress.audioTotalBytes;
+    download.progress.totalBytes = combinedTotal;
+}
+// Transition to next stage (called when stage completes)
+export function setStage(jobId, stage) {
+    const download = activeDownloads.get(jobId);
+    if (!download)
+        return;
+    // When transitioning FROM video TO audio, finalize video bytes
+    if (download.progress.stage === 'video' && stage === 'audio') {
+        download.progress.videoDownloadedBytes = download.progress.videoTotalBytes;
+    }
+    download.progress.stage = stage;
+    if (stage === 'merging') {
+        // During merge, show 100% or close to it
+        download.progress.percentage = 99;
     }
 }
 export function completeDownload(jobId, finalBytes) {
