@@ -27,7 +27,7 @@ export async function downloadVideo(
   mode: "video" | "audio",
   quality?: string,
   format?: string
-): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string }> {
+): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
   const response = await fetch("/api/download", {
     method: "POST",
     headers: {

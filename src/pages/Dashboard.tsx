@@ -355,7 +355,7 @@ export default function Dashboard() {
         <div className="card-elevated p-4 flex gap-4">
           <img src={currentMetadata.thumbnail} alt="" className="w-32 h-20 object-cover rounded-lg" />
           <div className="flex-1 min-w-0">
-            <ScrollingTitle className="font-semibold" title={currentMetadata.title}>
+            <ScrollingTitle className="font-semibold">
               {currentMetadata.title}
             </ScrollingTitle>
             <p className="text-sm text-muted-foreground">{currentMetadata.channel}</p>
