@@ -35,6 +35,45 @@ app.post('/api/metadata', async (req, res) => {
         res.status(500).json({ error: message });
     }
 });
+// Get estimated file size (for Dashboard display)
+app.post('/api/filesize', async (req, res) => {
+    try {
+        const { url, mode, quality, format, playlistItems } = req.body;
+        if (!url || !mode) {
+            res.status(400).json({ error: 'URL and mode are required' });
+            return;
+        }
+        // Get raw file size from yt-dlp (possibly with range/selection)
+        let fileSize = await getFileSize(url, mode, quality, playlistItems);
+        // For audio mode, apply format-based multipliers (same as during download)
+        if (mode === 'audio' && format) {
+            const formatLower = format.toLowerCase();
+            let multiplier = 1.0;
+            switch (formatLower) {
+                case 'mp3':
+                    multiplier = 1.67;
+                    break;
+                case 'm4a':
+                    multiplier = 2.67;
+                    break;
+                case 'wav':
+                    multiplier = 12.85;
+                    break;
+                case 'opus':
+                default:
+                    multiplier = 1.0;
+                    break;
+            }
+            fileSize = Math.round(fileSize * multiplier);
+        }
+        res.json({ fileSize });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.error('Error getting file size:', message);
+        res.status(500).json({ error: message, fileSize: 0 });
+    }
+});
 // Download a video or audio
 app.post('/api/download', async (req, res) => {
     try {

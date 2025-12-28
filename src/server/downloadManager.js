@@ -20,7 +20,37 @@ export function getDownloadProgress(jobId) {
         download.downloadedBytesAtLastCheck = download.progress.downloadedBytes;
         download.lastCheckTime = now;
     }
-    return { ...download.progress };
+    // Create a copy of progress for response
+    const progressCopy = { ...download.progress };
+    // For audio mode, apply format-based size estimation multipliers
+    // OPUS is the source format - other formats are converted and may have different sizes
+    if (download.options.mode === 'audio' && download.options.format) {
+        const format = download.options.format.toLowerCase();
+        let multiplier = 1.0;
+        switch (format) {
+            case 'mp3':
+                multiplier = 1.67; // MP3: 1.67x
+                break;
+            case 'm4a':
+                multiplier = 2.67; // M4A (AAC): 2.67x
+                break;
+            case 'wav':
+                multiplier = 12.85; // WAV: 12.85x
+                break;
+            case 'opus':
+            default:
+                multiplier = 1.0; // OPUS: 1x (native)
+                break;
+        }
+        // Apply multiplier to total bytes for display
+        progressCopy.totalBytes = Math.round(download.progress.totalBytes * multiplier);
+        progressCopy.audioTotalBytes = Math.round(download.progress.audioTotalBytes * multiplier);
+        // Recalculate percentage based on estimated total
+        if (progressCopy.totalBytes > 0) {
+            progressCopy.percentage = (download.progress.downloadedBytes / progressCopy.totalBytes) * 100;
+        }
+    }
+    return progressCopy;
 }
 export function registerDownload(jobId, options) {
     // If already registered (resume case), don't reset progress

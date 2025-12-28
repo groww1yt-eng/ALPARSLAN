@@ -32,9 +32,13 @@ export interface DownloadOptions {
 }
 
 // Get total file size using yt-dlp
-export async function getFileSize(url: string, mode: 'video' | 'audio', quality: string = '1080p'): Promise<number> {
+export async function getFileSize(url: string, mode: 'video' | 'audio', quality: string = '1080p', playlistItems?: string): Promise<number> {
   try {
     let ytdlpArgs: string[] = ['-j'];
+
+    if (playlistItems) {
+      ytdlpArgs.push('--playlist-items', playlistItems);
+    }
 
     if (mode === 'audio') {
       ytdlpArgs.push('-x');
@@ -59,15 +63,26 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     ytdlpArgs.push(url);
 
     const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
-    const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
+    const output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
 
     try {
-      const info = JSON.parse(output);
-      // Return filesize or fall back to filesize_approx
-      // These are in bytes
-      return info.filesize || info.filesize_approx || 0;
-    } catch {
-      return 0; // Return 0 if we can't parse, download will proceed anyway
+      // Split by newline and parse each line (for playlists)
+      const lines = output.trim().split('\n');
+      let total = 0;
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const info = JSON.parse(line);
+          total += info.filesize || info.filesize_approx || 0;
+        } catch (e) {
+          console.error('Error parsing JSON line in getFileSize:', e);
+        }
+      }
+      return total;
+    } catch (parseError) {
+      console.error('Global parse error in getFileSize:', parseError);
+      return 0;
     }
   } catch (error) {
     console.error('Error getting file size:', error);

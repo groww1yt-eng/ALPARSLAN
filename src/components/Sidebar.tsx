@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  X, 
-  LayoutDashboard, 
-  Download, 
-  History, 
+import {
+  X,
+  LayoutDashboard,
+  Download,
+  History,
   Settings,
   RotateCcw,
   Video,
@@ -132,13 +132,13 @@ export function Sidebar() {
           </button>
         </div>
 
-        <ConfirmModal
-          open={showResetConfirm}
-          onCancel={() => setShowResetConfirm(false)}
-          onConfirm={confirmResetDefaults}
-        />
-
       </aside>
+
+      <ConfirmModal
+        open={showResetConfirm}
+        onCancel={() => setShowResetConfirm(false)}
+        onConfirm={confirmResetDefaults}
+      />
     </>
   );
 }

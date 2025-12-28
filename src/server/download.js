@@ -3,9 +3,12 @@ import path from 'path';
 import fs from 'fs';
 import { registerDownload, updateProgress, completeDownload, failDownload, setDownloadProcess, getDownloadProgress, setStageTotalBytes, setStage } from './downloadManager.js';
 // Get total file size using yt-dlp
-export async function getFileSize(url, mode, quality = '1080p') {
+export async function getFileSize(url, mode, quality = '1080p', playlistItems) {
     try {
         let ytdlpArgs = ['-j'];
+        if (playlistItems) {
+            ytdlpArgs.push('--playlist-items', playlistItems);
+        }
         if (mode === 'audio') {
             ytdlpArgs.push('-x');
             ytdlpArgs.push('--audio-format=mp3');
@@ -28,15 +31,27 @@ export async function getFileSize(url, mode, quality = '1080p') {
         ytdlpArgs.push('--skip-download');
         ytdlpArgs.push(url);
         const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
-        const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
+        const output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
         try {
-            const info = JSON.parse(output);
-            // Return filesize or fall back to filesize_approx
-            // These are in bytes
-            return info.filesize || info.filesize_approx || 0;
+            // Split by newline and parse each line (for playlists)
+            const lines = output.trim().split('\n');
+            let total = 0;
+            for (const line of lines) {
+                if (!line.trim())
+                    continue;
+                try {
+                    const info = JSON.parse(line);
+                    total += info.filesize || info.filesize_approx || 0;
+                }
+                catch (e) {
+                    console.error('Error parsing JSON line in getFileSize:', e);
+                }
+            }
+            return total;
         }
-        catch {
-            return 0; // Return 0 if we can't parse, download will proceed anyway
+        catch (parseError) {
+            console.error('Global parse error in getFileSize:', parseError);
+            return 0;
         }
     }
     catch (error) {

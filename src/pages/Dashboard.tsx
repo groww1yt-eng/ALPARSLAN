@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload } from '@/lib/api';
-import { isValidYouTubeUrl, calculateFileSize, formatFileSize } from '@/lib/demoData';
+import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize } from '@/lib/api';
+import { isValidYouTubeUrl } from '@/lib/demoData';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
 import { NamingOptions } from '@/components/NamingOptions';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +35,8 @@ export default function Dashboard() {
   const [showPlaylistSelector, setShowPlaylistSelector] = useState(false);
   const [selectedVideos, setSelectedVideos] = useState<PlaylistVideo[]>([]);
   const [currentNamingTemplate, setCurrentNamingTemplate] = useState('');
+  const [estimatedSize, setEstimatedSize] = useState<string>('Calculating...');
+  const [isCalculatingSize, setIsCalculatingSize] = useState(false);
 
   useEffect(() => {
     if (currentMetadata?.isPlaylist && currentMetadata.videoCount) {
@@ -89,37 +91,73 @@ export default function Dashboard() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      e.currentTarget.blur();
       handleFetchMetadata();
     }
   };
 
-  // Calculate file size based on mode, quality/format, and duration
-  const getCalculatedFileSize = (): string => {
-    if (!currentMetadata) return '0 MB';
-
-    if (currentMetadata.isPlaylist) {
-      // For playlists, calculate based on selected videos or all videos
-      const videosToCalculate = playlistMode === 'manual'
-        ? selectedVideos.filter(v => v.selected)
-        : playlistMode === 'range'
-          ? (currentMetadata.videos || []).slice(parseInt(rangeStart) - 1, parseInt(rangeEnd))
-          : currentMetadata.videos || [];
-
-      // Estimate average duration of 8 minutes per video if no specific durations
-      const totalDuration = videosToCalculate.length * 480; // 8 min avg
-      const sizeMB = calculateFileSize(totalDuration, mode, quality, format);
-      return formatFileSize(sizeMB);
+  // Fetch estimated file size from backend when parameters change
+  useEffect(() => {
+    // Only fetch if we have metadata and url
+    if (!currentMetadata || !url) {
+      setEstimatedSize('--');
+      return;
     }
 
-    // Single video
-    const sizeMB = calculateFileSize(currentMetadata.durationSeconds, mode, quality, format);
-    return formatFileSize(sizeMB);
-  };
+    // Fetch real file size from backend
+    const fetchSize = async () => {
+      setIsCalculatingSize(true);
+      setEstimatedSize('Calculating...');
+
+      try {
+        // Calculate playlistItems string for the backend if in playlist mode
+        let playlistItems: string | undefined = undefined;
+        if (currentMetadata.isPlaylist) {
+          if (playlistMode === 'range') {
+            playlistItems = `${rangeStart}-${rangeEnd}`;
+          } else if (playlistMode === 'manual') {
+            const selectedIndices = (currentMetadata.videos || [])
+              .map((v, i) => v.selected ? i + 1 : null)
+              .filter(idx => idx !== null);
+
+            if (selectedIndices.length === 0) {
+              setEstimatedSize('No videos selected');
+              setIsCalculatingSize(false);
+              return;
+            }
+            playlistItems = selectedIndices.join(',');
+          }
+        }
+
+        const result = await getEstimatedFileSize(url, mode, quality, format, playlistItems);
+        if (result.fileSize > 0) {
+          // Format the size
+          const sizeMB = result.fileSize / (1024 * 1024);
+          if (sizeMB >= 1024) {
+            setEstimatedSize(`${(sizeMB / 1024).toFixed(2)} GB`);
+          } else {
+            setEstimatedSize(`${sizeMB.toFixed(2)} MB`);
+          }
+        } else {
+          setEstimatedSize('--');
+        }
+      } catch (error) {
+        console.error('Error fetching file size:', error);
+        setEstimatedSize('--');
+      } finally {
+        setIsCalculatingSize(false);
+      }
+    };
+
+    // Debounce the API call slightly
+    const timeoutId = setTimeout(fetchSize, 500); // 500ms since playlist can be heavy
+    return () => clearTimeout(timeoutId);
+  }, [url, currentMetadata, mode, quality, format, playlistMode, rangeStart, rangeEnd, selectedVideos]);
 
   const handleStartDownload = async () => {
     if (!currentMetadata) return;
 
-    const processDownload = async (videoId: string, title: string, videoUrl: string) => {
+    const processDownload = async (videoId: string, title: string, videoUrl: string, thumbnail: string) => {
       const jobId = crypto.randomUUID();
 
 
@@ -128,7 +166,7 @@ export default function Dashboard() {
         videoId,
         title,
         channel: currentMetadata.channel,
-        thumbnail: currentMetadata.thumbnail,
+        thumbnail, // Use individual video thumbnail, not playlist thumbnail
         mode,
         quality: mode === 'video' ? quality : undefined,
         format: mode === 'audio' ? format : undefined,
@@ -247,7 +285,7 @@ export default function Dashboard() {
               id: crypto.randomUUID(),
               title,
               channel: currentMetadata.channel,
-              thumbnail: currentMetadata.thumbnail,
+              thumbnail, // Use individual video thumbnail
               mode,
               quality: mode === 'video' ? quality : undefined,
               format: mode === 'audio' ? format : undefined,
@@ -307,12 +345,14 @@ export default function Dashboard() {
 
       // Download each video sequentially
       for (const video of videosToDownload) {
-        const playlistUrl = url.split('&')[0]; // Remove query params if any
-        await processDownload(video.id, video.title, playlistUrl);
+        // CRITICAL: Use individual video URL, NOT playlist URL
+        // yt-dlp with playlist URL downloads from #1 regardless of video.id
+        const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
+        await processDownload(video.id, video.title, videoUrl, video.thumbnail);
       }
     } else {
       // Single video download
-      await processDownload(currentMetadata.id, currentMetadata.title, url);
+      await processDownload(currentMetadata.id, currentMetadata.title, url, currentMetadata.thumbnail);
     }
 
     setCurrentMetadata(null);
@@ -461,7 +501,10 @@ export default function Dashboard() {
             "
           >
             <span className="text-muted-foreground">Estimated size:</span>
-            <span className="font-medium">{getCalculatedFileSize()}</span>
+            <span className="font-medium flex items-center gap-2">
+              {isCalculatingSize && <Loader2 className="h-3 w-3 animate-spin" />}
+              {estimatedSize}
+            </span>
           </div>
         )}
 

@@ -52,6 +52,30 @@ export async function downloadVideo(
   return response.json();
 }
 
+// ================= FILE SIZE ESTIMATION =================
+export async function getEstimatedFileSize(
+  url: string,
+  mode: "video" | "audio",
+  quality?: string,
+  format?: string,
+  playlistItems?: string
+): Promise<{ fileSize: number }> {
+  const response = await fetch("/api/filesize", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ url, mode, quality, format, playlistItems })
+  });
+
+  if (!response.ok) {
+    // Return 0 if we can't get size - download will proceed anyway
+    return { fileSize: 0 };
+  }
+
+  return response.json();
+}
+
 // ================= PROGRESS =================
 export interface DownloadProgressData {
   totalBytes: number;
