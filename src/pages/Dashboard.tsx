@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ScrollingTitle from '@/components/ScrollingTitle';
+import StartDownloadButton from '@/components/StartDownloadButton';
 import {
   Select,
   SelectTrigger,
@@ -563,14 +564,9 @@ export default function Dashboard() {
 
       {/* Start Download Button */}
       {currentMetadata && (
-        <Button
-          onClick={handleStartDownload}
-          className="w-full py-4 text-lg"
-        >
-          <Download className="mr-2 h-5 w-5" />
-          Start Download
-        </Button>
+        <StartDownloadButton onClick={handleStartDownload} />
       )}
+
 
 
       {/* Playlist Selector Modal */}
