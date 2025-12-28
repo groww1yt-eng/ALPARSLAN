@@ -69,12 +69,12 @@ export default function Dashboard() {
     try {
       const metadata = await fetchMetadata(url);
       setCurrentMetadata(metadata);
-      
+
       // Initialize selected videos empty for playlists (user must select)
       if (metadata?.videos) {
         setSelectedVideos(metadata.videos); // Already set to selected: false
       }
-      
+
       addNotification({ type: 'success', title: 'Fetched!', message: metadata?.title || 'Video info loaded' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch metadata';
@@ -98,7 +98,7 @@ export default function Dashboard() {
 
     if (currentMetadata.isPlaylist) {
       // For playlists, calculate based on selected videos or all videos
-      const videosToCalculate = playlistMode === 'manual' 
+      const videosToCalculate = playlistMode === 'manual'
         ? selectedVideos.filter(v => v.selected)
         : playlistMode === 'range'
           ? (currentMetadata.videos || []).slice(parseInt(rangeStart) - 1, parseInt(rangeEnd))
@@ -120,8 +120,8 @@ export default function Dashboard() {
 
     const processDownload = async (videoId: string, title: string, videoUrl: string) => {
       const jobId = crypto.randomUUID();
-      
-      
+
+
       const newJob = {
         id: jobId,
         videoId,
@@ -170,19 +170,19 @@ export default function Dashboard() {
         // Start polling for progress
         let progressInterval: NodeJS.Timeout | null = null;
         let lastFileSize = 'Calculating...'; // Keep track of the most recent file size
-        
+
         const startProgressPolling = () => {
           progressInterval = setInterval(async () => {
             try {
               const progress = await getDownloadProgress(jobId);
-              
+
               // Calculate file size - use total bytes if available
               let displayFileSize = lastFileSize;
               if (progress.totalBytes > 0) {
                 displayFileSize = `${(progress.totalBytes / (1024 * 1024)).toFixed(2)} MB`;
                 lastFileSize = displayFileSize; // Remember the actual size
               }
-              
+
               const downloadedSize = progress.downloadedBytes > 0
                 ? `${(progress.downloadedBytes / (1024 * 1024)).toFixed(2)} MB`
                 : '0 MB';
@@ -225,40 +225,46 @@ export default function Dashboard() {
         }
 
         if (result.success) {
-          // Update job status to completed with actual file size
-          updateJob(jobId, {
-            status: 'completed' as const,
-            progress: 100,
-            fileSize: result.fileSize,
-            downloadedSize: result.fileSize,
-            eta: '0:00',
-            speed: '0 MB/s',
-            completedAt: new Date(),
-          });
+          // Check if this was a pause/cancel - don't mark as completed!
+          if (result.status === 'paused' || result.status === 'canceled') {
+            // Don't update status - it was already set by the pause/cancel handler
+            console.log(`Download ${jobId} was ${result.status}, not marking as completed`);
+          } else {
+            // Actual completion - update job status to completed with actual file size
+            updateJob(jobId, {
+              status: 'completed' as const,
+              progress: 100,
+              fileSize: result.fileSize,
+              downloadedSize: result.fileSize,
+              eta: '0:00',
+              speed: '0 MB/s',
+              completedAt: new Date(),
+            });
 
-          // Add to history
-          addToHistory({
-            id: crypto.randomUUID(),
-            title,
-            channel: currentMetadata.channel,
-            thumbnail: currentMetadata.thumbnail,
-            mode,
-            quality: mode === 'video' ? quality : undefined,
-            format: mode === 'audio' ? format : undefined,
-            fileSize: result.fileSize,
-            filePath: result.filePath,
-            completedAt: new Date(),
-          });
+            // Add to history
+            addToHistory({
+              id: crypto.randomUUID(),
+              title,
+              channel: currentMetadata.channel,
+              thumbnail: currentMetadata.thumbnail,
+              mode,
+              quality: mode === 'video' ? quality : undefined,
+              format: mode === 'audio' ? format : undefined,
+              fileSize: result.fileSize,
+              filePath: result.filePath,
+              completedAt: new Date(),
+            });
 
-          addNotification({
-            type: 'success',
-            title: 'Download Complete',
-            message: `${title} (${result.fileSize}) saved`,
-          });
+            addNotification({
+              type: 'success',
+              title: 'Download Complete',
+              message: `${title} (${result.fileSize}) saved`,
+            });
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        
+
         // Update job status to failed
         updateJob(jobId, {
           status: 'failed' as const,
@@ -276,7 +282,7 @@ export default function Dashboard() {
     if (currentMetadata.isPlaylist && currentMetadata.videos) {
       // Determine which videos to download based on playlist mode
       let videosToDownload: PlaylistVideo[] = [];
-      
+
       if (playlistMode === 'all') {
         videosToDownload = currentMetadata.videos;
       } else if (playlistMode === 'range') {
@@ -292,10 +298,10 @@ export default function Dashboard() {
         return;
       }
 
-      addNotification({ 
-        type: 'info', 
-        title: 'Downloads Started', 
-        message: `Starting ${videosToDownload.length} video downloads` 
+      addNotification({
+        type: 'info',
+        title: 'Downloads Started',
+        message: `Starting ${videosToDownload.length} video downloads`
       });
 
       // Download each video sequentially
@@ -408,7 +414,7 @@ export default function Dashboard() {
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select quality" />
                 </SelectTrigger>
-          
+
                 <SelectContent>
                   <SelectItem value="360p">360p</SelectItem>
                   <SelectItem value="480p">480p SD</SelectItem>
@@ -500,7 +506,7 @@ export default function Dashboard() {
 
                     // inactive (Video + Audio / Audio Only style)
                     !isActive &&
-                      'bg-primary/10 text-primary hover:bg-primary/20',
+                    'bg-primary/10 text-primary hover:bg-primary/20',
 
                     // active
                     isActive && 'bg-primary text-white shadow-md shadow-primary/30 '

@@ -223,17 +223,31 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     });
 
     pythonProcess.on('close', (code) => {
+      // CRITICAL: Check pause/cancel status FIRST before any other processing
+      // This must happen before checking exit code because SIGKILL can cause code=0
+      if (jobId) {
+        const progress = getDownloadProgress(jobId);
+        if (progress && (progress.status === 'paused' || progress.status === 'canceled')) {
+          console.log(`Download ${jobId} was ${progress.status}, not completing.`);
+          reject(new Error(progress.status === 'paused' ? 'Download paused' : 'Download canceled'));
+          return;
+        }
+      }
+
       if (code === 0) {
-        // Success
+        // Success - but only if not paused/canceled (already checked above)
         console.log('✅ Download process completed');
 
-        // Find the file (reuse existing logic)
+        // Find the file - IGNORE .part files (incomplete downloads)
         try {
           const files = fs.readdirSync(outputFolder);
           let downloadedFile: string | null = null;
           let latestTime = 0;
 
           for (const file of files) {
+            // Skip .part files - these are incomplete
+            if (file.endsWith('.part')) continue;
+
             const filePath = path.join(outputFolder, file);
             const stats = fs.statSync(filePath);
             if (stats.isFile() && stats.mtimeMs > latestTime) {
@@ -269,7 +283,8 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               fileSize: `${(stats.size / (1024 * 1024)).toFixed(2)} MB`
             });
           } else {
-            if (jobId) failDownload(jobId, 'No file found');
+            // No complete file found - this might mean download was interrupted
+            if (jobId) failDownload(jobId, 'No complete file found (only .part files exist)');
             reject(new Error('No file downloaded'));
           }
         } catch (err) {

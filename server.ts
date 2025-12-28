@@ -52,10 +52,10 @@ app.post('/api/download', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get file size first (for progress tracking) - OPTIMIZATION: REMOVED for speed
-    // const fileSize = await getFileSize(url, mode, quality);
+    // Get file size first (for progress tracking)
+    const fileSize = await getFileSize(url, mode, quality);
 
-    // Pass 0 as fileSize, downloadVideo will parse it from yt-dlp output
+    // Pass fileSize to downloadVideo
     const result = await downloadVideo({
       url,
       videoId,
@@ -64,14 +64,14 @@ app.post('/api/download', async (req: Request, res: Response) => {
       mode,
       quality,
       format,
-      fileSize: 0,
+      fileSize,
     });
 
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
 
-    // Handle expected interruptions (Pause/Cancel) gracefuly
+    // Handle expected interruptions (Pause/Cancel) gracefully
     if (message === 'Download paused' || message === 'Download canceled') {
       res.json({ success: true, status: message.toLowerCase().replace('download ', '') });
       return;
@@ -130,6 +130,10 @@ app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
 // Cancel download
 app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
+  // Use correct relative path or require if needed
+  // Since we are compiling, require is okay if it works, but better to import above.
+  // However, circular deps concern. 
+  // Let's use dynamic import for cancelDownload to be safe, matching original structure.
   const { cancelDownload } = require('./src/server/downloadManager.js');
   const success = cancelDownload(jobId);
 

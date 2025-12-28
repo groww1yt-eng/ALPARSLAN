@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
-import { downloadVideo } from './src/server/download.js';
+import { downloadVideo, getFileSize } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload } from './src/server/downloadManager.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -43,9 +43,9 @@ app.post('/api/download', async (req, res) => {
             res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
             return;
         }
-        // Get file size first (for progress tracking) - OPTIMIZATION: REMOVED for speed
-        // const fileSize = await getFileSize(url, mode, quality);
-        // Pass 0 as fileSize, downloadVideo will parse it from yt-dlp output
+        // Get file size first (for progress tracking)
+        const fileSize = await getFileSize(url, mode, quality);
+        // Pass fileSize to downloadVideo
         const result = await downloadVideo({
             url,
             videoId,
@@ -54,13 +54,13 @@ app.post('/api/download', async (req, res) => {
             mode,
             quality,
             format,
-            fileSize: 0,
+            fileSize,
         });
         res.json(result);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        // Handle expected interruptions (Pause/Cancel) gracefuly
+        // Handle expected interruptions (Pause/Cancel) gracefully
         if (message === 'Download paused' || message === 'Download canceled') {
             res.json({ success: true, status: message.toLowerCase().replace('download ', '') });
             return;
@@ -107,6 +107,10 @@ app.post('/api/download/resume/:jobId', async (req, res) => {
 // Cancel download
 app.post('/api/download/cancel/:jobId', (req, res) => {
     const { jobId } = req.params;
+    // Use correct relative path or require if needed
+    // Since we are compiling, require is okay if it works, but better to import above.
+    // However, circular deps concern. 
+    // Let's use dynamic import for cancelDownload to be safe, matching original structure.
     const { cancelDownload } = require('./src/server/downloadManager.js');
     const success = cancelDownload(jobId);
     if (!success) {
