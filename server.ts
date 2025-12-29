@@ -1,21 +1,32 @@
+// Backend entrypoint (single source of truth)
+//
+// Architecture:
+// - Development:
+//   - Vite serves the frontend on :5173
+//   - This Express server runs on :3001 and handles all /api/* routes
+//   - Vite proxies /api and /health to this server (see vite.config.ts)
+// - Production:
+//   - Express serves the built frontend from ./dist and also provides /api/* routes
+//   - Build output is generated into ./dist-server via `npm run build:server`
+
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
-import { getDownloadProgress, pauseDownload, resumeDownload } from './src/server/downloadManager.js';
+import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } from './src/server/downloadManager.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = parseInt(process.env.PORT || '8080', 10);
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Serve static frontend files (from dist folder)
-const distPath = path.join(__dirname, 'dist');
+const distPath = path.resolve(process.cwd(), 'dist');
 app.use(express.static(distPath));
 
 // Health check
@@ -165,8 +176,8 @@ app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
 
   // Restart the download process in background (fire and forget for this request)
   // The frontend will poll for progress
-  downloadVideo(options).catch(err => {
-    console.error(`Resumed download failed [${jobId}]:`, err);
+  void downloadVideo(options).catch((error) => {
+    console.error(`Resumed download failed [${jobId}]:`, error);
   });
 
   res.json({ success: true });
@@ -175,11 +186,6 @@ app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
 // Cancel download
 app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
-  // Use correct relative path or require if needed
-  // Since we are compiling, require is okay if it works, but better to import above.
-  // However, circular deps concern. 
-  // Let's use dynamic import for cancelDownload to be safe, matching original structure.
-  const { cancelDownload } = require('./src/server/downloadManager.js');
   const success = cancelDownload(jobId);
 
   if (!success) {

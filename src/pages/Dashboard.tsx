@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ScrollingTitle from '@/components/ScrollingTitle';
 import StartDownloadButton from '@/components/StartDownloadButton';
+import { handleAppError } from '@/lib/errorHandler';
 import {
   Select,
   SelectTrigger,
@@ -80,8 +81,7 @@ export default function Dashboard() {
 
       addNotification({ type: 'success', title: 'Fetched!', message: metadata?.title || 'Video info loaded' });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to fetch metadata';
-      addNotification({ type: 'error', title: 'Error', message });
+      handleAppError(error, { title: 'Error', defaultMessage: 'Failed to fetch metadata' });
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +114,50 @@ export default function Dashboard() {
         let playlistItems: string | undefined = undefined;
         if (currentMetadata.isPlaylist) {
           if (playlistMode === 'range') {
-            playlistItems = `${rangeStart}-${rangeEnd}`;
+            const maxCount = currentMetadata.videoCount ?? currentMetadata.videos?.length ?? 0;
+            const startStr = rangeStart.trim();
+            const endStr = rangeEnd.trim();
+
+            const startNum = startStr === '' ? NaN : Number(startStr);
+            const endNum = endStr === '' ? NaN : Number(endStr);
+
+            if (!Number.isInteger(startNum)) {
+              setEstimatedSize('Start must be a number');
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (!Number.isInteger(endNum)) {
+              setEstimatedSize('End must be a number');
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (startNum < 1) {
+              setEstimatedSize('Start must be at least 1');
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (endNum < 1) {
+              setEstimatedSize('End must be at least 1');
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (maxCount > 0 && startNum > maxCount) {
+              setEstimatedSize(`Start cannot exceed ${maxCount}`);
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (maxCount > 0 && endNum > maxCount) {
+              setEstimatedSize(`End cannot exceed ${maxCount}`);
+              setIsCalculatingSize(false);
+              return;
+            }
+            if (startNum > endNum) {
+              setEstimatedSize('Start must be less than or equal to end');
+              setIsCalculatingSize(false);
+              return;
+            }
+
+            playlistItems = `${startNum}-${endNum}`;
           } else if (playlistMode === 'manual') {
             const selectedIndices = (currentMetadata.videos || [])
               .map((v, i) => v.selected ? i + 1 : null)
@@ -142,7 +185,7 @@ export default function Dashboard() {
           setEstimatedSize('--');
         }
       } catch (error) {
-        console.error('Error fetching file size:', error);
+        handleAppError(error, { title: 'Error', defaultMessage: 'Error fetching file size', notify: false, logLabel: 'Error fetching file size:' });
         setEstimatedSize('--');
       } finally {
         setIsCalculatingSize(false);
@@ -173,7 +216,7 @@ export default function Dashboard() {
         status: 'downloading' as const,
         progress: 0,
         speed: '0 MB/s',
-        eta: 'Calculating...',
+        eta: '--',
         fileSize: 'Calculating...', // Show "Calculating..." instead of estimate
         downloadedSize: '0 MB',
         createdAt: new Date(),
@@ -250,7 +293,7 @@ export default function Dashboard() {
                 }
               }
             } catch (error) {
-              console.error('Error getting progress:', error);
+              handleAppError(error, { title: 'Error', defaultMessage: 'Error getting progress', notify: false, logLabel: 'Error getting progress:' });
             }
           }, 500); // Poll every 500ms
         };
@@ -302,18 +345,16 @@ export default function Dashboard() {
           }
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
+        const message = handleAppError(error, {
+          title: 'Download Failed',
+          defaultMessage: 'Unknown error',
+          userMessagePrefix: title,
+        });
 
         // Update job status to failed
         updateJob(jobId, {
           status: 'failed' as const,
           error: message,
-        });
-
-        addNotification({
-          type: 'error',
-          title: 'Download Failed',
-          message: `${title}: ${message}`,
         });
       }
     };
@@ -325,9 +366,71 @@ export default function Dashboard() {
       if (playlistMode === 'all') {
         videosToDownload = currentMetadata.videos;
       } else if (playlistMode === 'range') {
-        const start = Math.max(1, parseInt(rangeStart)) - 1;
-        const end = Math.min(currentMetadata.videos.length, parseInt(rangeEnd));
-        videosToDownload = currentMetadata.videos.slice(start, end);
+        const maxCount = currentMetadata.videos.length;
+        const startStr = rangeStart.trim();
+        const endStr = rangeEnd.trim();
+
+        const startNum = startStr === '' ? NaN : Number(startStr);
+        const endNum = endStr === '' ? NaN : Number(endStr);
+
+        if (!Number.isInteger(startNum)) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: 'Start must be a number',
+          });
+          return;
+        }
+        if (!Number.isInteger(endNum)) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: 'End must be a number',
+          });
+          return;
+        }
+        if (startNum < 1) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: 'Start must be at least 1',
+          });
+          return;
+        }
+        if (endNum < 1) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: 'End must be at least 1',
+          });
+          return;
+        }
+        if (startNum > maxCount) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: `Start cannot exceed ${maxCount} (playlist has ${maxCount} videos)`,
+          });
+          return;
+        }
+        if (endNum > maxCount) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: `End cannot exceed ${maxCount} (playlist has ${maxCount} videos)`,
+          });
+          return;
+        }
+        if (startNum > endNum) {
+          addNotification({
+            type: 'error',
+            title: 'Invalid Range',
+            message: 'Start must be less than or equal to end',
+          });
+          return;
+        }
+
+        videosToDownload = currentMetadata.videos.slice(startNum - 1, endNum);
       } else if (playlistMode === 'manual') {
         videosToDownload = selectedVideos.filter(v => v.selected);
       }

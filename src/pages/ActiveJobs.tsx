@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { JobCard } from '@/components/JobCard';
-import { pauseDownload, resumeDownload, cancelDownload } from '@/lib/api';
+import { pauseDownload, resumeDownload, cancelDownload, getDownloadProgress } from '@/lib/api';
+import { handleAppError } from '@/lib/errorHandler';
 import { Download, Inbox } from 'lucide-react';
 
 export default function ActiveJobs() {
@@ -13,66 +14,69 @@ export default function ActiveJobs() {
     if (activeJobs.length === 0) return;
 
     const interval = setInterval(async () => {
-      for (const job of activeJobs) {
-        if (job.status !== 'downloading') continue;
+      try {
+        for (const job of activeJobs) {
+          if (job.status !== 'downloading') continue;
 
-        try {
-          const progress = await fetch(`/api/download/progress/${job.id}`).then(res => res.json());
+          try {
+            const progress = await getDownloadProgress(job.id);
 
-          if (progress.error) continue;
+            if (progress.error) continue;
 
-          // Handle Completion
-          if (progress.status === 'completed') {
+            // Handle Completion
+            if (progress.status === 'completed') {
+              updateJob(job.id, {
+                progress: 100,
+                downloadedSize: job.fileSize,
+                status: 'completed',
+                speed: undefined,
+                eta: undefined,
+                completedAt: new Date(),
+              });
+
+              addToHistory({
+                id: crypto.randomUUID(),
+                title: job.title,
+                channel: job.channel,
+                thumbnail: job.thumbnail,
+                mode: job.mode,
+                quality: job.quality,
+                format: job.format,
+                fileSize: job.fileSize || '0 MB',
+                filePath: `/storage/emulated/0/ALP/${job.title}.${job.mode === 'video' ? 'mp4' : job.format || 'mp3'}`,
+                completedAt: new Date(),
+              });
+              continue;
+            }
+
+            // Handle Failure
+            if (progress.status === 'failed') {
+              updateJob(job.id, {
+                status: 'failed',
+                error: progress.error || 'Download failed'
+              });
+              continue;
+            }
+
+            // Handle Active Progress
+            // Convert bytes to MB
+            const totalMB = (progress.totalBytes / (1024 * 1024));
+            const downloadedMB = (progress.downloadedBytes / (1024 * 1024));
+            const speedMBps = (progress.speed / (1024 * 1024));
+
             updateJob(job.id, {
-              progress: 100,
-              downloadedSize: job.fileSize,
-              status: 'completed',
-              speed: undefined,
-              eta: undefined,
-              completedAt: new Date(),
+              progress: Math.min(100, Math.round(progress.percentage || 0)),
+              downloadedSize: `${downloadedMB.toFixed(1)} MB`, // Only downloaded, not "X / Y"
+              speed: `${speedMBps.toFixed(1)} MB/s`,
+              eta: formatEta(progress.eta),
+              fileSize: `${totalMB.toFixed(1)} MB`
             });
-
-            addToHistory({
-              id: crypto.randomUUID(),
-              title: job.title,
-              channel: job.channel,
-              thumbnail: job.thumbnail,
-              mode: job.mode,
-              quality: job.quality,
-              format: job.format,
-              fileSize: job.fileSize || '0 MB',
-              filePath: `/storage/emulated/0/ALP/${job.title}.${job.mode === 'video' ? 'mp4' : job.format || 'mp3'}`,
-              completedAt: new Date(),
-            });
-            continue;
+          } catch (error) {
+            handleAppError(error, { title: 'Error', defaultMessage: 'Error polling progress', notify: false, logLabel: 'Error polling progress:' });
           }
-
-          // Handle Failure
-          if (progress.status === 'failed') {
-            updateJob(job.id, {
-              status: 'failed',
-              error: progress.error || 'Download failed'
-            });
-            continue;
-          }
-
-          // Handle Active Progress
-          // Convert bytes to MB
-          const totalMB = (progress.totalBytes / (1024 * 1024));
-          const downloadedMB = (progress.downloadedBytes / (1024 * 1024));
-          const speedMBps = (progress.speed / (1024 * 1024));
-
-          updateJob(job.id, {
-            progress: Math.min(100, Math.round(progress.percentage || 0)),
-            downloadedSize: `${downloadedMB.toFixed(1)} MB`, // Only downloaded, not "X / Y"
-            speed: `${speedMBps.toFixed(1)} MB/s`,
-            eta: formatEta(progress.eta),
-            fileSize: `${totalMB.toFixed(1)} MB`
-          });
-
-        } catch (err) {
-          console.error('Error polling progress:', err);
         }
+      } catch (error) {
+        handleAppError(error, { title: 'Error', defaultMessage: 'Error polling progress', notify: false, logLabel: 'Error polling progress:' });
       }
     }, 1000);
 
@@ -108,21 +112,35 @@ export default function ActiveJobs() {
               <JobCard
                 key={job.id}
                 job={job}
-                onPause={() => {
-                  pauseDownload(job.id).catch(err => console.error('Pause error:', err));
+                onPause={async () => {
+                  const previousStatus = job.status;
                   updateJob(job.id, { status: 'paused' });
+                  try {
+                    await pauseDownload(job.id);
+                  } catch (error) {
+                    handleAppError(error, { title: 'Pause Failed', defaultMessage: 'Failed to pause download' });
+                    updateJob(job.id, { status: previousStatus });
+                  }
                 }}
-                onResume={() => {
-                  resumeDownload(job.id).catch(err => {
-                    console.error('Resume error:', err);
-                    // If resume fails, maybe set back to paused? 
-                    // But for now just log it. 
-                  });
+                onResume={async () => {
+                  const previousStatus = job.status;
                   updateJob(job.id, { status: 'downloading' });
+                  try {
+                    await resumeDownload(job.id);
+                  } catch (error) {
+                    handleAppError(error, { title: 'Resume Failed', defaultMessage: 'Failed to resume download' });
+                    updateJob(job.id, { status: previousStatus });
+                  }
                 }}
-                onCancel={() => {
-                  cancelDownload(job.id).catch(err => console.error('Cancel error:', err));
+                onCancel={async () => {
+                  const previousStatus = job.status;
                   updateJob(job.id, { status: 'canceled' });
+                  try {
+                    await cancelDownload(job.id);
+                  } catch (error) {
+                    handleAppError(error, { title: 'Cancel Failed', defaultMessage: 'Failed to cancel download' });
+                    updateJob(job.id, { status: previousStatus });
+                  }
                 }}
                 onRemove={() => {
                   removeJob(job.id);

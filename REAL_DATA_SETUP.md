@@ -8,10 +8,7 @@ You need **yt-dlp** installed on your system to fetch real YouTube metadata.
 
 **Windows:**
 ```powershell
-# Using bun
-bun add -g yt-dlp
-
-# Or using pip
+# Using pip
 pip install yt-dlp
 
 # Or using choco
@@ -53,8 +50,6 @@ The app now uses a **two-tier architecture**:
 ### Option 1: Run Both Simultaneously (Recommended)
 ```bash
 npm run dev:all
-# or
-bun run dev:all
 ```
 
 This runs both the backend server and frontend dev server in parallel.
@@ -64,8 +59,6 @@ This runs both the backend server and frontend dev server in parallel.
 **Terminal 1 - Start Backend:**
 ```bash
 npm run server
-# or
-bun run server
 ```
 
 Backend will start on `http://localhost:3001`
@@ -73,8 +66,6 @@ Backend will start on `http://localhost:3001`
 **Terminal 2 - Start Frontend:**
 ```bash
 npm run dev
-# or
-bun run dev
 ```
 
 Frontend will start on `http://localhost:5173`
@@ -154,7 +145,7 @@ pip install --upgrade yt-dlp
 ### Backend fails to start
 - Make sure port 3001 is not in use
 - Check that yt-dlp is installed
-- Try running: `bun run server` to see error details
+- Try running: `npm run server` to see error details
 
 ### "Failed to fetch metadata" error
 - Check if the URL is a valid YouTube URL
