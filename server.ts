@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } from './src/server/downloadManager.js';
+import { getNamingTemplates, setNamingTemplates } from './src/server/settingsStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -32,6 +33,32 @@ app.use(express.static(distPath));
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
+});
+
+// Naming templates (backend persisted)
+app.get('/api/naming-templates', (_req: Request, res: Response) => {
+  try {
+    res.json({ namingTemplates: getNamingTemplates() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put('/api/naming-templates', (req: Request, res: Response) => {
+  try {
+    const { namingTemplates } = req.body;
+    if (!namingTemplates) {
+      res.status(400).json({ error: 'namingTemplates is required' });
+      return;
+    }
+
+    setNamingTemplates(namingTemplates);
+    res.json({ success: true, namingTemplates: getNamingTemplates() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
 });
 
 // Fetch metadata for a video or playlist
