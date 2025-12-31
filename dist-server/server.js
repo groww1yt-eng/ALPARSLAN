@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } from './src/server/downloadManager.js';
+import { getNamingTemplates, setNamingTemplates } from './src/server/settingsStore.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -27,6 +28,31 @@ app.use(express.static(distPath));
 // Health check
 app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
+});
+// Naming templates (backend persisted)
+app.get('/api/naming-templates', (_req, res) => {
+    try {
+        res.json({ namingTemplates: getNamingTemplates() });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ error: message });
+    }
+});
+app.put('/api/naming-templates', (req, res) => {
+    try {
+        const { namingTemplates } = req.body;
+        if (!namingTemplates) {
+            res.status(400).json({ error: 'namingTemplates is required' });
+            return;
+        }
+        setNamingTemplates(namingTemplates);
+        res.json({ success: true, namingTemplates: getNamingTemplates() });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ error: message });
+    }
 });
 // Fetch metadata for a video or playlist
 app.post('/api/metadata', async (req, res) => {
@@ -87,14 +113,14 @@ app.post('/api/filesize', async (req, res) => {
 // Download a video or audio
 app.post('/api/download', async (req, res) => {
     try {
-        const { url, videoId, jobId, outputFolder, mode, quality, format } = req.body;
+        const { url, videoId, jobId, outputFolder, mode, quality, format, contentType, playlistIndex, videoTitle, channelName } = req.body;
         if (!url || !videoId || !jobId || !outputFolder || !mode) {
             res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
             return;
         }
         // Get file size first (for progress tracking)
         const fileSize = await getFileSize(url, mode, quality);
-        // Pass fileSize to downloadVideo
+        // Pass fileSize and naming metadata to downloadVideo
         const result = await downloadVideo({
             url,
             videoId,
@@ -104,6 +130,10 @@ app.post('/api/download', async (req, res) => {
             quality,
             format,
             fileSize,
+            contentType: contentType || 'single',
+            playlistIndex,
+            videoTitle,
+            channelName,
         });
         res.json(result);
     }
