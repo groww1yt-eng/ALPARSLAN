@@ -176,8 +176,10 @@ export default function Dashboard() {
 
             playlistItems = `${startNum}-${endNum}`;
           } else if (playlistMode === 'manual') {
-            const selectedIndices = (currentMetadata.videos || [])
-              .map((v, i) => v.selected ? i + 1 : null)
+            // Use selectedVideos state which contains the latest selection status
+            const sourceVideos = selectedVideos.length > 0 ? selectedVideos : (currentMetadata.videos || []);
+            const selectedIndices = sourceVideos
+              .map((v, i) => v.selected ? v.index : null) // Use v.index (original index)
               .filter(idx => idx !== null);
 
             if (selectedIndices.length === 0) {

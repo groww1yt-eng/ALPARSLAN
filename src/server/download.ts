@@ -61,10 +61,25 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     }
 
     ytdlpArgs.push('--skip-download');
+    ytdlpArgs.push('--ignore-errors'); // Don't fail entire batch if one is private
+    ytdlpArgs.push('--no-warnings');   // Reduce noise
     ytdlpArgs.push(url);
 
     const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
-    const output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
+
+    let output = '';
+    try {
+      output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
+    } catch (error: any) {
+      // If yt-dlp exits with error (e.g. private video), it might still have output valid JSON for others
+      if (error.stdout) {
+        console.warn('yt-dlp exited with error but returned stdout (likely private videos), continuing parsing...');
+        output = error.stdout.toString();
+      } else {
+        console.error('Error getting file size (no stdout):', error.message);
+        return 0;
+      }
+    }
 
     try {
       // Split by newline and parse each line (for playlists)
@@ -77,7 +92,7 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
           const info = JSON.parse(line);
           total += info.filesize || info.filesize_approx || 0;
         } catch (e) {
-          console.error('Error parsing JSON line in getFileSize:', e);
+          // Ignore parse errors for non-JSON lines (warnings etc)
         }
       }
       return total;
