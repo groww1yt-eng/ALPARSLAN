@@ -17,6 +17,8 @@ import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } from './src/server/downloadManager.js';
 import { getNamingTemplates, setNamingTemplates } from './src/server/settingsStore.js';
+import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/namingResolver.js';
+import type { ContentType, DownloadMode } from './src/server/namingResolver.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -128,17 +130,58 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
 // Download a video or audio
 app.post('/api/download', async (req: Request, res: Response) => {
   try {
-    const { url, videoId, jobId, outputFolder, mode, quality, format } = req.body;
+    const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType } = req.body;
+
+    // Debug: Log incoming naming metadata
+    console.log('[DEBUG] Download request received:');
+    console.log(`[DEBUG]   title: "${title}"`);
+    console.log(`[DEBUG]   channel: "${channel}"`);
+    console.log(`[DEBUG]   index: ${index}`);
+    console.log(`[DEBUG]   contentType: "${contentType}"`);
+    console.log(`[DEBUG]   mode: "${mode}", quality: "${quality}"`);
 
     if (!url || !videoId || !jobId || !outputFolder || !mode) {
       res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
       return;
     }
 
+    // Get naming template from settings
+    const templates = getNamingTemplates();
+    const actualContentType: ContentType = contentType || 'single';
+    const actualMode: DownloadMode = mode;
+    const template = templates[actualContentType][actualMode];
+
+    // Validate template before starting download (backend-enforced)
+    const validation = validateTemplate(template, actualContentType, actualMode);
+    if (!validation.valid) {
+      res.status(400).json({
+        error: validation.message,
+        type: 'naming_validation',
+        validationType: validation.type
+      });
+      return;
+    }
+
+    // Resolve the filename using the template
+    const resolvedFilename = resolveFilename({
+      template,
+      title: title || 'Unknown Video',
+      channel: channel || 'Unknown Channel',
+      quality: quality,
+      format: mode === 'audio' ? (format || 'mp3') : 'mp4',
+      index: index,
+      date: getCurrentDate(),
+      mode: actualMode,
+      contentType: actualContentType,
+    });
+
+    console.log(`[NAMING] Template: "${template}"`);
+    console.log(`[NAMING] Resolved: "${resolvedFilename}"`);
+
     // Get file size first (for progress tracking)
     const fileSize = await getFileSize(url, mode, quality);
 
-    // Pass fileSize to downloadVideo
+    // Pass fileSize and resolvedFilename to downloadVideo
     const result = await downloadVideo({
       url,
       videoId,
@@ -148,6 +191,7 @@ app.post('/api/download', async (req: Request, res: Response) => {
       quality,
       format,
       fileSize,
+      resolvedFilename,
     });
 
     res.json(result);

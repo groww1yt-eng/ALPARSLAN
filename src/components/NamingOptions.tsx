@@ -45,7 +45,7 @@ export function NamingOptions({
   const allowedTags = getAllowedTags(contentType, mode);
   const tagsInTemplate = extractTags(editValue);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // ❌ If validation error → show error notification and stop
     if (hasError) {
       addNotification({
@@ -56,19 +56,41 @@ export function NamingOptions({
       return;
     }
 
+    // Build updated templates object
+    const updatedTemplates = {
+      ...settings.namingTemplates,
+      [contentType]: {
+        ...settings.namingTemplates[contentType],
+        [mode]: editValue,
+      },
+    };
+
+    // ✅ Save to backend (persist to disk)
+    try {
+      const response = await fetch('/api/naming-templates', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ namingTemplates: updatedTemplates }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save template');
+      }
+    } catch (error) {
+      addNotification({
+        type: 'error',
+        title: 'Save Failed',
+        message: error instanceof Error ? error.message : 'Could not save template to server.',
+      });
+      return;
+    }
+
     // ✅ Update local state
     onTemplateChange(editValue);
 
-    // ✅ Update global settings
-    updateSettings({
-      namingTemplates: {
-        ...settings.namingTemplates,
-        [contentType]: {
-          ...settings.namingTemplates[contentType],
-          [mode]: editValue,
-        },
-      },
-    });
+    // ✅ Update global settings (frontend state)
+    updateSettings({ namingTemplates: updatedTemplates });
 
     // ✅ Success notification
     addNotification({

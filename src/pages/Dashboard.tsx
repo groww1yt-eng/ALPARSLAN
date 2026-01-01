@@ -200,7 +200,7 @@ export default function Dashboard() {
   const handleStartDownload = async () => {
     if (!currentMetadata) return;
 
-    const processDownload = async (videoId: string, title: string, videoUrl: string, thumbnail: string) => {
+    const processDownload = async (videoId: string, title: string, videoUrl: string, thumbnail: string, playlistIndex?: number) => {
       const jobId = crypto.randomUUID();
 
 
@@ -238,7 +238,7 @@ export default function Dashboard() {
       });
 
       try {
-        // Call the actual download API with jobId
+        // Call the actual download API with jobId and naming metadata
         const downloadPromise = apiDownloadVideo(
           videoUrl,
           videoId,
@@ -246,7 +246,13 @@ export default function Dashboard() {
           settings.outputFolder,
           mode,
           quality,
-          format
+          format,
+          {
+            title,
+            channel: currentMetadata.channel,
+            index: playlistIndex,
+            contentType: currentMetadata.isPlaylist ? 'playlist' : 'single',
+          }
         );
 
         // Start polling for progress
@@ -447,14 +453,16 @@ export default function Dashboard() {
       });
 
       // Download each video sequentially
+      let playlistIndex = 1;
       for (const video of videosToDownload) {
         // CRITICAL: Use individual video URL, NOT playlist URL
         // yt-dlp with playlist URL downloads from #1 regardless of video.id
         const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
-        await processDownload(video.id, video.title, videoUrl, video.thumbnail);
+        await processDownload(video.id, video.title, videoUrl, video.thumbnail, playlistIndex);
+        playlistIndex++;
       }
     } else {
-      // Single video download
+      // Single video download (no playlist index)
       await processDownload(currentMetadata.id, currentMetadata.title, url, currentMetadata.thumbnail);
     }
 

@@ -19,6 +19,13 @@ export async function fetchMetadata(url: string): Promise<VideoMetadata> {
 }
 
 // ================= DOWNLOAD =================
+export interface NamingMetadata {
+  title: string;
+  channel: string;
+  index?: number;
+  contentType: 'single' | 'playlist';
+}
+
 export async function downloadVideo(
   url: string,
   videoId: string,
@@ -26,7 +33,8 @@ export async function downloadVideo(
   outputFolder: string,
   mode: "video" | "audio",
   quality?: string,
-  format?: string
+  format?: string,
+  namingMetadata?: NamingMetadata
 ): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
   const response = await fetch("/api/download", {
     method: "POST",
@@ -40,7 +48,12 @@ export async function downloadVideo(
       outputFolder,
       mode,
       quality,
-      format
+      format,
+      // Naming metadata for backend filename resolution
+      title: namingMetadata?.title,
+      channel: namingMetadata?.channel,
+      index: namingMetadata?.index,
+      contentType: namingMetadata?.contentType,
     })
   });
 

@@ -28,6 +28,7 @@ export interface DownloadOptions {
   quality?: string;
   format?: string;
   fileSize?: number;
+  resolvedFilename?: string; // Final filename without extension (from naming resolver)
   onProgress?: (progress: number) => void;
 }
 
@@ -140,7 +141,7 @@ function getUniqueFilename(filePath: string): string {
 }
 
 export async function downloadVideo(options: DownloadOptions): Promise<DownloadResult> {
-  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0 } = options;
+  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename } = options;
 
   // Ensure output folder exists
   if (!fs.existsSync(outputFolder)) {
@@ -175,8 +176,10 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       ytdlpArgs.push('--remux-video=mp4');
     }
 
-    // Output template with sanitized filename
-    const outputTemplate = path.join(outputFolder, '%(title)s.%(ext)s');
+    // Use temp filename during download, will rename to resolved filename after completion
+    // This ensures we don't have partial files with final names
+    const tempBasename = jobId ? `${jobId}.temp` : `${crypto.randomUUID()}.temp`;
+    const outputTemplate = path.join(outputFolder, `${tempBasename}.%(ext)s`);
     ytdlpArgs.push('-o', outputTemplate);
     ytdlpArgs.push('--no-warnings');
     ytdlpArgs.push('--newline'); // Important for parsing progress
@@ -274,35 +277,61 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
         // Success - but only if not paused/canceled (already checked above)
         console.log('✅ Download process completed');
 
-        // Find the file - IGNORE .part files (incomplete downloads)
+        // Find the temp file we just downloaded
         try {
           const files = fs.readdirSync(outputFolder);
           let downloadedFile: string | null = null;
-          let latestTime = 0;
 
+          // Look for our temp file (matches jobId.temp.* pattern)
           for (const file of files) {
             // Skip .part files - these are incomplete
             if (file.endsWith('.part')) continue;
 
-            const filePath = path.join(outputFolder, file);
-            const stats = fs.statSync(filePath);
-            if (stats.isFile() && stats.mtimeMs > latestTime) {
-              latestTime = stats.mtimeMs;
-              downloadedFile = filePath;
+            // Match our temp file pattern
+            if (file.startsWith(tempBasename)) {
+              downloadedFile = path.join(outputFolder, file);
+              break;
+            }
+          }
+
+          // Fallback: find most recently modified file (for compatibility)
+          if (!downloadedFile) {
+            let latestTime = 0;
+            for (const file of files) {
+              if (file.endsWith('.part')) continue;
+              const filePath = path.join(outputFolder, file);
+              const stats = fs.statSync(filePath);
+              if (stats.isFile() && stats.mtimeMs > latestTime) {
+                latestTime = stats.mtimeMs;
+                downloadedFile = filePath;
+              }
             }
           }
 
           if (downloadedFile) {
-            const originalName = path.basename(downloadedFile);
-            const sanitized = sanitizeFilename(originalName);
-            const sanitizedPath = path.join(outputFolder, sanitized);
+            // Get the extension from the downloaded file
+            const downloadedExt = path.extname(downloadedFile);
             let finalPath = downloadedFile;
 
-            if (sanitized !== originalName) {
-              // Simple rename
-              if (!fs.existsSync(sanitizedPath)) {
-                fs.renameSync(downloadedFile, sanitizedPath);
-                finalPath = sanitizedPath;
+            // If we have a resolved filename, rename to it
+            if (resolvedFilename) {
+              const targetName = `${resolvedFilename}${downloadedExt}`;
+              const targetPath = path.join(outputFolder, targetName);
+              // Use getUniqueFilename to handle duplicates
+              finalPath = getUniqueFilename(targetPath);
+
+              console.log(`Renaming: ${path.basename(downloadedFile)} -> ${path.basename(finalPath)}`);
+              fs.renameSync(downloadedFile, finalPath);
+            } else {
+              // Fallback: sanitize the original name (legacy behavior)
+              const originalName = path.basename(downloadedFile);
+              const sanitized = sanitizeFilename(originalName);
+              if (sanitized !== originalName) {
+                const sanitizedPath = path.join(outputFolder, sanitized);
+                if (!fs.existsSync(sanitizedPath)) {
+                  fs.renameSync(downloadedFile, sanitizedPath);
+                  finalPath = sanitizedPath;
+                }
               }
             }
 
