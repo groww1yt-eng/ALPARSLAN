@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/config';
 import { useAppStore } from '@/store/useAppStore';
 import {
     Server,
@@ -57,7 +58,7 @@ export default function Compatibility() {
     const fetchSystemInfo = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/system-info');
+            const res = await fetch(`${API_BASE_URL}/api/system-info`);
             // If HTML returned (parsing error), throw distinctive error
             const contentType = res.headers.get('content-type');
             if (contentType && contentType.includes('text/html')) {

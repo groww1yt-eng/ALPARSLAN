@@ -30,8 +30,7 @@ bun.lock*
 # Dependency directories
 node_modules/
 vendor/
-.env
-.env.*
+
 dist/
 build/
 coverage/

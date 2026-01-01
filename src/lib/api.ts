@@ -1,8 +1,9 @@
 import type { VideoMetadata } from '@/types';
+import { API_BASE_URL } from '@/config';
 
 // ================= METADATA =================
 export async function fetchMetadata(url: string): Promise<VideoMetadata> {
-  const response = await fetch("/api/metadata", {
+  const response = await fetch(`${API_BASE_URL}/api/metadata`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -43,7 +44,7 @@ export async function downloadVideo(
   format?: string,
   namingMetadata?: NamingMetadata
 ): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
-  const response = await fetch("/api/download", {
+  const response = await fetch(`${API_BASE_URL}/api/download`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -88,7 +89,7 @@ export async function getEstimatedFileSize(
   playlistItems?: string,
   signal?: AbortSignal
 ): Promise<{ fileSize: number }> {
-  const response = await fetch("/api/filesize", {
+  const response = await fetch(`${API_BASE_URL}/api/filesize`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -123,7 +124,7 @@ export interface DownloadProgressData {
 }
 
 export async function getDownloadProgress(jobId: string): Promise<DownloadProgressData> {
-  const response = await fetch(`/api/download/progress/${jobId}`);
+  const response = await fetch(`${API_BASE_URL}/api/download/progress/${jobId}`);
   if (!response.ok) {
     throw new Error("Failed to get download progress");
   }
@@ -131,7 +132,7 @@ export async function getDownloadProgress(jobId: string): Promise<DownloadProgre
 }
 
 export async function pauseDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/download/pause/${jobId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/download/pause/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {
@@ -141,7 +142,7 @@ export async function pauseDownload(jobId: string): Promise<{ success: boolean }
 }
 
 export async function resumeDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/download/resume/${jobId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/download/resume/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {
@@ -151,7 +152,7 @@ export async function resumeDownload(jobId: string): Promise<{ success: boolean 
 }
 
 export async function cancelDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`/api/download/cancel/${jobId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/download/cancel/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {

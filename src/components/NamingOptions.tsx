@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/config';
 import { useAppStore } from '@/store/useAppStore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -67,7 +68,7 @@ export function NamingOptions({
 
     // ✅ Save to backend (persist to disk)
     try {
-      const response = await fetch('/api/naming-templates', {
+      const response = await fetch(`${API_BASE_URL}/api/naming-templates`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ namingTemplates: updatedTemplates }),
