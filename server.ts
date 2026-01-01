@@ -19,6 +19,7 @@ import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } fr
 import { getNamingTemplates, setNamingTemplates } from './src/server/settingsStore.js';
 import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/namingResolver.js';
 import type { ContentType, DownloadMode } from './src/server/namingResolver.js';
+import { validateAndSanitizeUrl } from './src/server/validation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,8 +74,14 @@ app.post('/api/metadata', async (req: Request, res: Response) => {
       return;
     }
 
-    const metadata = await getVideoMetadata(url);
-    res.json(metadata);
+    try {
+      const sanitizedUrl = validateAndSanitizeUrl(url);
+      const metadata = await getVideoMetadata(sanitizedUrl); // Use sanitized URL
+      res.json(metadata);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Invalid or malicious URL' });
+      return;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching metadata:', message);
@@ -92,8 +99,15 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
       return;
     }
 
-    // Get raw file size from yt-dlp (possibly with range/selection)
-    let fileSize = await getFileSize(url, mode, quality, playlistItems);
+    let fileSize = 0;
+    try {
+      const sanitizedUrl = validateAndSanitizeUrl(url);
+      // Get raw file size from yt-dlp (possibly with range/selection)
+      fileSize = await getFileSize(sanitizedUrl, mode, quality, playlistItems); // Use sanitized URL
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Invalid URL' });
+      return;
+    }
 
     // For audio mode, apply format-based multipliers (same as during download)
     if (mode === 'audio' && format) {
@@ -142,6 +156,14 @@ app.post('/api/download', async (req: Request, res: Response) => {
 
     if (!url || !videoId || !jobId || !outputFolder || !mode) {
       res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
+      return;
+    }
+
+    let sanitizedUrl = url;
+    try {
+      sanitizedUrl = validateAndSanitizeUrl(url);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Invalid URL' });
       return;
     }
 

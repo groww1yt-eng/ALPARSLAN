@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize } from '@/lib/api';
-import { isValidYouTubeUrl } from '@/lib/demoData';
+import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
 import { NamingOptions } from '@/components/NamingOptions';
 import { Switch } from '@/components/ui/switch';
@@ -71,7 +71,10 @@ export default function Dashboard() {
 
     setIsLoading(true);
     try {
-      const metadata = await fetchMetadata(url);
+      // Calculate sanitized URL
+      const sanitizedUrl = validateAndSanitizeUrl(url);
+
+      const metadata = await fetchMetadata(sanitizedUrl);
       setCurrentMetadata(metadata);
 
       // Initialize selected videos empty for playlists (user must select)

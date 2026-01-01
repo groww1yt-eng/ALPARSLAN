@@ -139,14 +139,56 @@ export function generateMockMetadata(url: string): VideoMetadata | null {
   };
 }
 
+// Allowed hostnames for YouTube
+const ALLOWED_HOSTS = [
+  'youtube.com',
+  'www.youtube.com',
+  'm.youtube.com',
+  'youtu.be',
+  'www.youtu.be',
+  'youtube-nocookie.com'
+];
+
+export function validateAndSanitizeUrl(inputUrl: string): string {
+  try {
+    const url = new URL(inputUrl);
+
+    // Protocol check
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error('Invalid protocol: must be http or https');
+    }
+
+    // Hostname check
+    if (!ALLOWED_HOSTS.includes(url.hostname)) {
+      throw new Error('Invalid hostname: must be a YouTube domain');
+    }
+
+    // Clean query params
+    const allowedParams = ['v', 'list', 't'];
+    const params = new URLSearchParams(url.search);
+    const newParams = new URLSearchParams();
+
+    allowedParams.forEach(p => {
+      if (params.has(p)) newParams.set(p, params.get(p)!);
+    });
+
+    // Replace params
+    url.search = newParams.toString();
+
+    // Convert to string (remove trailing slash if it was just domain, though usually youtube urls have path)
+    return url.toString();
+  } catch (error) {
+    throw new Error('Invalid YouTube URL');
+  }
+}
+
 export function isValidYouTubeUrl(url: string): boolean {
-  const patterns = [
-    /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/,
-    /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=[\w-]+/,
-    /^(https?:\/\/)?youtu\.be\/[\w-]+/,
-    /^(https?:\/\/)?(www\.)?youtube\.com\/playlist\?list=[\w-]+/,
-  ];
-  return patterns.some(pattern => pattern.test(url));
+  try {
+    validateAndSanitizeUrl(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function extractVideoId(url: string): string | null {
