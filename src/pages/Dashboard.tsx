@@ -453,13 +453,11 @@ export default function Dashboard() {
       });
 
       // Download each video sequentially
-      let playlistIndex = 1;
       for (const video of videosToDownload) {
         // CRITICAL: Use individual video URL, NOT playlist URL
         // yt-dlp with playlist URL downloads from #1 regardless of video.id
         const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
-        await processDownload(video.id, video.title, videoUrl, video.thumbnail, playlistIndex);
-        playlistIndex++;
+        await processDownload(video.id, video.title, videoUrl, video.thumbnail, video.index);
       }
     } else {
       // Single video download (no playlist index)
