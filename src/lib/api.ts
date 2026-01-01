@@ -11,8 +11,15 @@ export async function fetchMetadata(url: string): Promise<VideoMetadata> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Failed to fetch metadata");
+    let errorMessage = "Failed to fetch metadata";
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      const text = await response.text();
+      errorMessage = text || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -58,8 +65,15 @@ export async function downloadVideo(
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Failed to download video");
+    let errorMessage = "Failed to download video";
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      const text = await response.text();
+      errorMessage = text || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -84,6 +98,12 @@ export async function getEstimatedFileSize(
   });
 
   if (!response.ok) {
+    // Attempt to read error for debugging, but estimation failure shouldn't block UI
+    try {
+      const errorData = await response.json();
+      console.warn("Estimation failed:", errorData.error);
+    } catch { }
+
     // Return 0 if we can't get size - download will proceed anyway
     return { fileSize: 0 };
   }
