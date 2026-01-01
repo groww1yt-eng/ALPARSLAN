@@ -10,7 +10,9 @@ export function ThemeToggle() {
     const root = document.documentElement;
     if (isDark) {
       root.classList.remove('light');
+      root.classList.add('dark');
     } else {
+      root.classList.remove('dark');
       root.classList.add('light');
     }
   }, [isDark]);
@@ -22,13 +24,13 @@ export function ThemeToggle() {
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
     >
       {/* Track icons */}
-      <Sun className="absolute left-1.5 w-4 h-4 text-warning transition-opacity duration-300" 
-           style={{ opacity: isDark ? 0.3 : 1 }} />
+      <Sun className="absolute left-1.5 w-4 h-4 text-warning transition-opacity duration-300"
+        style={{ opacity: isDark ? 0.3 : 1 }} />
       <Moon className="absolute right-1.5 w-4 h-4 text-primary transition-opacity duration-300"
-            style={{ opacity: isDark ? 1 : 0.3 }} />
-      
+        style={{ opacity: isDark ? 1 : 0.3 }} />
+
       {/* Sliding knob */}
-      <span 
+      <span
         className={`
           absolute w-5 h-5 rounded-full bg-card border border-border shadow-md
           transition-all duration-300 ease-out

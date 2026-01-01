@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import ActiveJobs from "./pages/ActiveJobs";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
+import Compatibility from "./pages/Compatibility";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/active" element={<ActiveJobs />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/compatibility" element={<Compatibility />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

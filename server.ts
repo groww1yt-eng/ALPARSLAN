@@ -23,6 +23,9 @@ import { validateAndSanitizeUrl } from './src/server/validation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+import { getSystemInfo } from './src/server/system.js';
+
+// ... other imports ...
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Middleware
@@ -289,10 +292,23 @@ app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// System Info
+app.get('/api/system-info', async (_req: Request, res: Response) => {
+  try {
+    const info = await getSystemInfo();
+    res.json(info);
+  } catch (error) {
+    console.error('Error fetching system info:', error);
+    res.status(500).json({ error: 'Failed to fetch system info' });
+  }
+});
+
 // SPA Fallback - serve index.html for all non-API routes
 app.get('*', (_req: Request, res: Response) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
+
+
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Server running on http://localhost:${PORT}`);

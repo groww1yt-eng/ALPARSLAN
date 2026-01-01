@@ -8,12 +8,13 @@ const pageTitles: Record<string, string> = {
   '/active': 'Active Jobs',
   '/history': 'History',
   '/settings': 'Settings',
+  '/compatibility': 'Compatibility',
 };
 
 export function Header() {
   const { setSidebarOpen, jobs } = useAppStore();
   const location = useLocation();
-  
+
   const activeJobsCount = jobs.filter(j => j.status === 'downloading' || j.status === 'queued').length;
 
   return (
@@ -36,7 +37,7 @@ export function Header() {
               <span className="text-sm font-medium text-primary">{activeJobsCount}</span>
             </div>
           )}
-          
+
           <ThemeToggle />
         </div>
       </div>

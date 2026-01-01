@@ -9,6 +9,7 @@ import {
   History,
   Settings,
   RotateCcw,
+  ShieldCheck,
   Video,
   Music,
   Folder
@@ -24,6 +25,7 @@ export function Sidebar() {
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/active', label: 'Active Jobs', icon: Download },
     { path: '/history', label: 'History', icon: History },
+    { path: '/compatibility', label: 'Compatibility', icon: ShieldCheck }, // Using RotateCcw as generic icon or maybe Activity/Info? Let's use RotateCcw strictly as requested or just as placeholder. Wait, RefreshCw is good for updates. Let's inspect lucide imports.
     { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
