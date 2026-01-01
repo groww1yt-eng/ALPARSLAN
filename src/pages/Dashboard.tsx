@@ -106,6 +106,9 @@ export default function Dashboard() {
 
     // Fetch real file size from backend
     const fetchSize = async () => {
+      // Check if aborted before starting (double check)
+      if (currentController.signal.aborted) return;
+
       setIsCalculatingSize(true);
       setEstimatedSize('Calculating...');
 
@@ -122,38 +125,52 @@ export default function Dashboard() {
             const endNum = endStr === '' ? NaN : Number(endStr);
 
             if (!Number.isInteger(startNum)) {
-              setEstimatedSize('Start must be a number');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('Start must be a number');
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (!Number.isInteger(endNum)) {
-              setEstimatedSize('End must be a number');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('End must be a number');
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (startNum < 1) {
-              setEstimatedSize('Start must be at least 1');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('Start must be at least 1');
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (endNum < 1) {
-              setEstimatedSize('End must be at least 1');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('End must be at least 1');
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (maxCount > 0 && startNum > maxCount) {
-              setEstimatedSize(`Start cannot exceed ${maxCount}`);
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize(`Start cannot exceed ${maxCount}`);
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (maxCount > 0 && endNum > maxCount) {
-              setEstimatedSize(`End cannot exceed ${maxCount}`);
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize(`End cannot exceed ${maxCount}`);
+                setIsCalculatingSize(false);
+              }
               return;
             }
             if (startNum > endNum) {
-              setEstimatedSize('Start must be less than or equal to end');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('Start must be less than or equal to end');
+                setIsCalculatingSize(false);
+              }
               return;
             }
 
@@ -164,15 +181,27 @@ export default function Dashboard() {
               .filter(idx => idx !== null);
 
             if (selectedIndices.length === 0) {
-              setEstimatedSize('No videos selected');
-              setIsCalculatingSize(false);
+              if (!currentController.signal.aborted) {
+                setEstimatedSize('No videos selected');
+                setIsCalculatingSize(false);
+              }
               return;
             }
             playlistItems = selectedIndices.join(',');
           }
         }
 
-        const result = await getEstimatedFileSize(url, mode, quality, format, playlistItems);
+        const result = await getEstimatedFileSize(
+          url,
+          mode,
+          quality,
+          format,
+          playlistItems,
+          currentController.signal
+        );
+
+        if (currentController.signal.aborted) return;
+
         if (result.fileSize > 0) {
           // Format the size
           const sizeMB = result.fileSize / (1024 * 1024);
@@ -185,16 +214,31 @@ export default function Dashboard() {
           setEstimatedSize('--');
         }
       } catch (error) {
+        if (currentController.signal.aborted) return;
+
+        // Only log/notify if not an abort error
+        if (error instanceof Error && error.name === 'AbortError') {
+          // Ignore abort errors
+          return;
+        }
+
         handleAppError(error, { title: 'Error', defaultMessage: 'Error fetching file size', notify: false, logLabel: 'Error fetching file size:' });
         setEstimatedSize('--');
       } finally {
-        setIsCalculatingSize(false);
+        if (!currentController.signal.aborted) {
+          setIsCalculatingSize(false);
+        }
       }
     };
 
+    const currentController = new AbortController();
     // Debounce the API call slightly
     const timeoutId = setTimeout(fetchSize, 500); // 500ms since playlist can be heavy
-    return () => clearTimeout(timeoutId);
+
+    return () => {
+      clearTimeout(timeoutId);
+      currentController.abort();
+    };
   }, [url, currentMetadata, mode, quality, format, playlistMode, rangeStart, rangeEnd, selectedVideos]);
 
   const handleStartDownload = async () => {

@@ -71,14 +71,16 @@ export async function getEstimatedFileSize(
   mode: "video" | "audio",
   quality?: string,
   format?: string,
-  playlistItems?: string
+  playlistItems?: string,
+  signal?: AbortSignal
 ): Promise<{ fileSize: number }> {
   const response = await fetch("/api/filesize", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ url, mode, quality, format, playlistItems })
+    body: JSON.stringify({ url, mode, quality, format, playlistItems }),
+    signal
   });
 
   if (!response.ok) {
