@@ -62,6 +62,7 @@ const defaultSettings: AppSettings = {
   defaultQuality: '1080p',
   defaultFormat: 'mp3',
   downloadSubtitles: false,
+  subtitleLanguage: 'auto',
   reEncode: false,
   reEncodeFormat: 'mp4',
   filenameTemplate: '<title>',

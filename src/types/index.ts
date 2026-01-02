@@ -84,6 +84,7 @@ export interface AppSettings {
   defaultQuality: VideoQuality;
   defaultFormat: AudioFormat;
   downloadSubtitles: boolean;
+  subtitleLanguage: 'auto' | 'en';
   reEncode: boolean;
   reEncodeFormat: string;
   filenameTemplate: string;

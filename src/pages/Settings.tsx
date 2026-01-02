@@ -172,6 +172,41 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Subtitle Language</label>
+            <Select
+              value={draftSettings.subtitleLanguage}
+              onValueChange={(value) => {
+                setDraftSettings(prev => ({
+                  ...prev,
+                  subtitleLanguage: value as 'auto' | 'en'
+                }))
+                setHasChanges(true);
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Auto (YouTube Default)</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={draftSettings.downloadSubtitles}
+            onCheckedChange={(checked) => {
+              setDraftSettings(prev => ({
+                ...prev,
+                downloadSubtitles: checked
+              }))
+              setHasChanges(true);
+            }}
+          />
+          <span className="text-sm">Download Subtitles</span>
         </div>
 
         <div className="flex items-center gap-3">

@@ -42,7 +42,11 @@ export async function downloadVideo(
   mode: "video" | "audio",
   quality?: string,
   format?: string,
-  namingMetadata?: NamingMetadata
+  namingMetadata?: NamingMetadata,
+  subtitleOptions?: {
+    downloadSubtitles: boolean;
+    subtitleLanguage: 'auto' | 'en';
+  }
 ): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
   const response = await fetch(`${API_BASE_URL}/api/download`, {
     method: "POST",
@@ -62,6 +66,8 @@ export async function downloadVideo(
       channel: namingMetadata?.channel,
       index: namingMetadata?.index,
       contentType: namingMetadata?.contentType,
+      downloadSubtitles: subtitleOptions?.downloadSubtitles,
+      subtitleLanguage: subtitleOptions?.subtitleLanguage,
     })
   });
 

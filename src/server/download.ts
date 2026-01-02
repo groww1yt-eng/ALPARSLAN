@@ -30,6 +30,8 @@ export interface DownloadOptions {
   fileSize?: number;
   resolvedFilename?: string; // Final filename without extension (from naming resolver)
   onProgress?: (progress: number) => void;
+  downloadSubtitles?: boolean;
+  subtitleLanguage?: 'auto' | 'en';
 }
 
 // Get total file size using yt-dlp
@@ -156,7 +158,7 @@ function getUniqueFilename(filePath: string): string {
 }
 
 export async function downloadVideo(options: DownloadOptions): Promise<DownloadResult> {
-  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename } = options;
+  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename, downloadSubtitles, subtitleLanguage } = options;
 
   // Ensure output folder exists
   if (!fs.existsSync(outputFolder)) {
@@ -189,6 +191,18 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       const formatStr = qualityMap[quality] || qualityMap['1080p'];
       ytdlpArgs.push('-f', formatStr);
       ytdlpArgs.push('--remux-video=mp4');
+    }
+
+    // Subtitles
+    if (mode === 'video' && downloadSubtitles) {
+      ytdlpArgs.push('--embed-subs');
+      // --ignore-errors is already handled globally if needed, by passing specific flags to yt-dlp
+      // or relying on default behavior. We want to ensure it doesn't fail on missing subs.
+
+      if (subtitleLanguage === 'en') {
+        ytdlpArgs.push('--sub-langs', 'en.*');
+      }
+      // For 'auto', we don't add --sub-langs, or we let yt-dlp decide (usually gets all/auto).
     }
 
     // Use temp filename during download, will rename to resolved filename after completion

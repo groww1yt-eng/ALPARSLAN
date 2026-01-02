@@ -301,6 +301,10 @@ export default function Dashboard() {
             channel: currentMetadata.channel,
             index: playlistIndex,
             contentType: currentMetadata.isPlaylist ? 'playlist' : 'single',
+          },
+          {
+            downloadSubtitles: settings.downloadSubtitles,
+            subtitleLanguage: settings.subtitleLanguage,
           }
         );
 

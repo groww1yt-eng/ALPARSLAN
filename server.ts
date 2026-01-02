@@ -147,7 +147,7 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
 // Download a video or audio
 app.post('/api/download', async (req: Request, res: Response) => {
   try {
-    const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType } = req.body;
+    const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType, downloadSubtitles, subtitleLanguage } = req.body;
 
     // Debug: Log incoming naming metadata
     console.log('[DEBUG] Download request received:');
@@ -217,6 +217,8 @@ app.post('/api/download', async (req: Request, res: Response) => {
       format,
       fileSize,
       resolvedFilename,
+      downloadSubtitles,
+      subtitleLanguage,
     });
 
     res.json(result);
