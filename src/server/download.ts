@@ -32,6 +32,8 @@ export interface DownloadOptions {
   onProgress?: (progress: number) => void;
   downloadSubtitles?: boolean;
   subtitleLanguage?: 'auto' | 'en';
+  createPerChannelFolder?: boolean;
+  channel?: string;
 }
 
 // Get total file size using yt-dlp
@@ -158,11 +160,17 @@ function getUniqueFilename(filePath: string): string {
 }
 
 export async function downloadVideo(options: DownloadOptions): Promise<DownloadResult> {
-  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename, downloadSubtitles, subtitleLanguage } = options;
+  const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename, downloadSubtitles, subtitleLanguage, createPerChannelFolder, channel } = options;
+
+  let effectiveOutputFolder = outputFolder;
+  if (createPerChannelFolder && channel) {
+    const sanitizedChannel = sanitizeFilename(channel);
+    effectiveOutputFolder = path.join(outputFolder, sanitizedChannel);
+  }
 
   // Ensure output folder exists
-  if (!fs.existsSync(outputFolder)) {
-    fs.mkdirSync(outputFolder, { recursive: true });
+  if (!fs.existsSync(effectiveOutputFolder)) {
+    fs.mkdirSync(effectiveOutputFolder, { recursive: true });
   }
 
   // Register with manager immediately
@@ -208,7 +216,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     // Use temp filename during download, will rename to resolved filename after completion
     // This ensures we don't have partial files with final names
     const tempBasename = jobId ? `${jobId}.temp` : `${crypto.randomUUID()}.temp`;
-    const outputTemplate = path.join(outputFolder, `${tempBasename}.%(ext)s`);
+    const outputTemplate = path.join(effectiveOutputFolder, `${tempBasename}.%(ext)s`);
     ytdlpArgs.push('-o', outputTemplate);
     ytdlpArgs.push('--no-warnings');
     ytdlpArgs.push('--newline'); // Important for parsing progress
@@ -308,7 +316,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
         // Find the temp file we just downloaded
         try {
-          const files = fs.readdirSync(outputFolder);
+          const files = fs.readdirSync(effectiveOutputFolder);
           let downloadedFile: string | null = null;
 
           // Look for our temp file (matches jobId.temp.* pattern)
@@ -318,7 +326,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
             // Match our temp file pattern
             if (file.startsWith(tempBasename)) {
-              downloadedFile = path.join(outputFolder, file);
+              downloadedFile = path.join(effectiveOutputFolder, file);
               break;
             }
           }
@@ -328,7 +336,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             let latestTime = 0;
             for (const file of files) {
               if (file.endsWith('.part')) continue;
-              const filePath = path.join(outputFolder, file);
+              const filePath = path.join(effectiveOutputFolder, file);
               const stats = fs.statSync(filePath);
               if (stats.isFile() && stats.mtimeMs > latestTime) {
                 latestTime = stats.mtimeMs;
@@ -345,7 +353,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             // If we have a resolved filename, rename to it
             if (resolvedFilename) {
               const targetName = `${resolvedFilename}${downloadedExt}`;
-              const targetPath = path.join(outputFolder, targetName);
+              const targetPath = path.join(effectiveOutputFolder, targetName);
               // Use getUniqueFilename to handle duplicates
               finalPath = getUniqueFilename(targetPath);
 
@@ -356,7 +364,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               const originalName = path.basename(downloadedFile);
               const sanitized = sanitizeFilename(originalName);
               if (sanitized !== originalName) {
-                const sanitizedPath = path.join(outputFolder, sanitized);
+                const sanitizedPath = path.join(effectiveOutputFolder, sanitized);
                 if (!fs.existsSync(sanitizedPath)) {
                   fs.renameSync(downloadedFile, sanitizedPath);
                   finalPath = sanitizedPath;

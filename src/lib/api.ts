@@ -46,6 +46,7 @@ export async function downloadVideo(
   subtitleOptions?: {
     downloadSubtitles: boolean;
     subtitleLanguage: 'auto' | 'en';
+    createPerChannelFolder?: boolean;
   }
 ): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
   const response = await fetch(`${API_BASE_URL}/api/download`, {
@@ -68,6 +69,7 @@ export async function downloadVideo(
       contentType: namingMetadata?.contentType,
       downloadSubtitles: subtitleOptions?.downloadSubtitles,
       subtitleLanguage: subtitleOptions?.subtitleLanguage,
+      createPerChannelFolder: subtitleOptions?.createPerChannelFolder,
     })
   });
 

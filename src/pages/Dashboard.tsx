@@ -424,6 +424,7 @@ export default function Dashboard() {
           {
             downloadSubtitles: settings.downloadSubtitles,
             subtitleLanguage: settings.subtitleLanguage,
+            createPerChannelFolder: settings.perChannelFolders,
           }
         );
 

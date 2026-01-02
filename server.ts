@@ -147,7 +147,7 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
 // Download a video or audio
 app.post('/api/download', async (req: Request, res: Response) => {
   try {
-    const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType, downloadSubtitles, subtitleLanguage } = req.body;
+    const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType, downloadSubtitles, subtitleLanguage, createPerChannelFolder } = req.body;
 
     // Debug: Log incoming naming metadata
     console.log('[DEBUG] Download request received:');
@@ -156,6 +156,7 @@ app.post('/api/download', async (req: Request, res: Response) => {
     console.log(`[DEBUG]   index: ${index}`);
     console.log(`[DEBUG]   contentType: "${contentType}"`);
     console.log(`[DEBUG]   mode: "${mode}", quality: "${quality}"`);
+    console.log(`[DEBUG]   createPerChannelFolder: ${createPerChannelFolder}`);
 
     if (!url || !videoId || !jobId || !outputFolder || !mode) {
       res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
@@ -221,6 +222,8 @@ app.post('/api/download', async (req: Request, res: Response) => {
       resolvedFilename,
       downloadSubtitles,
       subtitleLanguage,
+      createPerChannelFolder,
+      channel: channel || 'Unknown Channel',
     }).catch(err => {
       console.error(`Background download failed for ${jobId}:`, err);
       // Error is already handled/logged in downloadVideo via failDownload
