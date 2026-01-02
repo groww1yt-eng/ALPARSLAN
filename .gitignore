@@ -35,3 +35,16 @@ dist/
 build/
 coverage/
 .DS_Store
+
+# App specific
+.alp-settings.json
+
+# Environment Variables
+.env
+.env.development
+.env.test
+.env.production
+.env.local
+
+# TypeScript Build Info
+*.tsbuildinfo
