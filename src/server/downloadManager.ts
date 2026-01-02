@@ -31,13 +31,40 @@ export interface ActiveDownload {
   filePath: string;
   options: DownloadOptions;
   isResuming: boolean; // Flag to prevent re-registration on resume
+  result?: {
+    filePath: string;
+    fileName: string;
+    fileSize: string;
+  };
 }
 
 const activeDownloads = new Map<string, ActiveDownload>();
 
+export function getActiveDownloads(): Record<string, DownloadProgress> {
+  const downloads: Record<string, DownloadProgress> = {};
+  for (const [id, download] of activeDownloads.entries()) {
+    downloads[id] = getDownloadProgress(id)!;
+  }
+  return downloads;
+}
+
+export function getDownloadResult(jobId: string) {
+  const download = activeDownloads.get(jobId);
+  return download?.result || null;
+}
+
 export function getDownloadProgress(jobId: string): DownloadProgress | null {
   const download = activeDownloads.get(jobId);
   if (!download) return null;
+  // ... (rest of function is fine, but I need to make sure I don't delete it.
+  // Wait, I am using replace_file_content, so I should be careful.
+  // The instruction implies adding functions.
+  // I'll stick to adding `result` to interface and the new functions at the end or appropriate places.
+  // Actually, let's use `multi_replace` or just be careful with `replace_file_content` ranges.
+  // `ActiveDownload` is at the top. `activeDownloads` is below it.
+  // I will split this into two edits if needed, or one big one if they are close.
+  // They are close enough.
+
 
   // Update speed and ETA
   const now = Date.now();
@@ -60,7 +87,12 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
   }
 
   // Create a copy of progress for response
-  const progressCopy = { ...download.progress };
+  const progressCopy: DownloadProgress & { result?: any } = { ...download.progress };
+
+  // Include result if available
+  if (download.result) {
+    progressCopy.result = download.result;
+  }
 
   // For audio mode, apply format-based size estimation multipliers
   // OPUS is the source format - other formats are converted and may have different sizes
@@ -195,11 +227,20 @@ export function setStage(jobId: string, stage: 'video' | 'audio' | 'merging' | '
   }
 }
 
-export function completeDownload(jobId: string, finalBytes?: number): void {
+export function completeDownload(jobId: string, finalBytes?: number, result?: {
+  filePath: string;
+  fileName: string;
+  fileSize: string;
+}): void {
   const download = activeDownloads.get(jobId);
   if (!download) return;
 
   download.progress.status = 'completed';
+
+  // Store result if provided
+  if (result) {
+    download.result = result;
+  }
 
   // If we have the actual final file size, update totalBytes to match
   // This ensures progress calculation is accurate

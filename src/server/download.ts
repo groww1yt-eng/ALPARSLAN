@@ -366,8 +366,13 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
             const stats = fs.statSync(finalPath);
 
+
             if (jobId) {
-              completeDownload(jobId, stats.size);
+              completeDownload(jobId, stats.size, {
+                filePath: finalPath,
+                fileName: path.basename(finalPath),
+                fileSize: `${(stats.size / (1024 * 1024)).toFixed(2)} MB`
+              });
             }
 
             resolve({

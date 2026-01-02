@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/useAppStore';
-import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize } from '@/lib/api';
+import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize, fetchActiveDownloads } from '@/lib/api';
 import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
 import { NamingOptions } from '@/components/NamingOptions';
@@ -45,6 +45,124 @@ export default function Dashboard() {
       setRangeEnd(String(currentMetadata.videoCount));
     }
   }, [currentMetadata]);
+
+  // Sync active downloads on mount (background persistence)
+  useEffect(() => {
+    const syncDownloads = async () => {
+      try {
+        const { downloads } = await fetchActiveDownloads();
+
+        // Update local state for each active download
+        Object.entries(downloads).forEach(([jobId, progress]) => {
+          // Check if job exists in store
+          const existingJob = useAppStore.getState().jobs.find(j => j.id === jobId);
+
+          if (existingJob) {
+            // If job is already completed/failed, don't revert state
+            if (existingJob.status === 'completed' || existingJob.status === 'failed') return;
+
+            // Resume polling for this job
+            pollDownloadProgress(jobId, {
+              title: existingJob.title,
+              channel: existingJob.channel,
+              thumbnail: existingJob.thumbnail,
+              mode: existingJob.mode,
+              quality: existingJob.quality,
+              format: existingJob.format
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Failed to sync downloads:', error);
+      }
+    };
+
+    syncDownloads();
+  }, []);
+
+  // Poll progress for a specific job
+  const pollDownloadProgress = (jobId: string, details: { title: string, channel: string, thumbnail: string, mode: DownloadMode, quality?: VideoQuality, format?: AudioFormat }) => {
+    let progressInterval: NodeJS.Timeout | null = null;
+    let lastFileSize = 'Calculating...';
+
+    progressInterval = setInterval(async () => {
+      try {
+        const progress = await getDownloadProgress(jobId);
+
+        // Calculate file size - use total bytes if available
+        let displayFileSize = lastFileSize;
+        if (progress.totalBytes > 0) {
+          displayFileSize = `${(progress.totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+          lastFileSize = displayFileSize;
+        }
+
+        const downloadedSize = progress.downloadedBytes > 0
+          ? `${(progress.downloadedBytes / (1024 * 1024)).toFixed(2)} MB`
+          : '0 MB';
+
+        const speed = progress.speed > 0
+          ? `${(progress.speed / (1024 * 1024)).toFixed(2)} MB/s`
+          : '0 MB/s';
+
+        const etaSeconds = Math.ceil(progress.eta);
+        const etaMinutes = Math.floor(etaSeconds / 60);
+        const etaSecs = etaSeconds % 60;
+        const eta = `${etaMinutes}:${etaSecs.toString().padStart(2, '0')}`;
+
+        updateJob(jobId, {
+          status: progress.status as any, // Sync status (downloading, paused, etc)
+          progress: isNaN(progress.percentage) ? 0 : Math.min(100, progress.percentage),
+          fileSize: displayFileSize,
+          downloadedSize,
+          speed,
+          eta,
+        });
+
+        // Stop polling when completed or failed
+        if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'canceled') {
+          if (progressInterval) {
+            clearInterval(progressInterval);
+          }
+
+          if (progress.status === 'completed' && progress.result) {
+            // Actual completion - update job status to completed with actual file size from result
+            updateJob(jobId, {
+              status: 'completed' as const,
+              progress: 100,
+              fileSize: progress.result.fileSize,
+              downloadedSize: progress.result.fileSize,
+              eta: '0:00',
+              speed: '0 MB/s',
+              completedAt: new Date(),
+            });
+
+            // Add to history
+            addToHistory({
+              id: crypto.randomUUID(),
+              title: details.title,
+              channel: details.channel,
+              thumbnail: details.thumbnail,
+              mode: details.mode,
+              quality: details.quality,
+              format: details.format,
+              fileSize: progress.result.fileSize,
+              filePath: progress.result.filePath,
+              completedAt: new Date(),
+            });
+
+            addNotification({
+              type: 'success',
+              title: 'Download Complete',
+              message: `${details.title} (${progress.result.fileSize}) saved`,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Polling error for ${jobId}:`, error);
+        if (progressInterval) clearInterval(progressInterval);
+      }
+    }, 500);
+  };
 
   // Determine content type based on metadata
   const contentType: ContentType = currentMetadata?.isPlaylist ? 'playlist' : 'single';
@@ -287,8 +405,9 @@ export default function Dashboard() {
       });
 
       try {
-        // Call the actual download API with jobId and naming metadata
-        const downloadPromise = apiDownloadVideo(
+        // Call the actual download API
+        // This is now fire-and-forget on the backend
+        const response = await apiDownloadVideo(
           videoUrl,
           videoId,
           jobId,
@@ -308,101 +427,20 @@ export default function Dashboard() {
           }
         );
 
-        // Start polling for progress
-        let progressInterval: NodeJS.Timeout | null = null;
-        let lastFileSize = 'Calculating...'; // Keep track of the most recent file size
-
-        const startProgressPolling = () => {
-          progressInterval = setInterval(async () => {
-            try {
-              const progress = await getDownloadProgress(jobId);
-
-              // Calculate file size - use total bytes if available
-              let displayFileSize = lastFileSize;
-              if (progress.totalBytes > 0) {
-                displayFileSize = `${(progress.totalBytes / (1024 * 1024)).toFixed(2)} MB`;
-                lastFileSize = displayFileSize; // Remember the actual size
-              }
-
-              const downloadedSize = progress.downloadedBytes > 0
-                ? `${(progress.downloadedBytes / (1024 * 1024)).toFixed(2)} MB`
-                : '0 MB';
-
-              const speed = progress.speed > 0
-                ? `${(progress.speed / (1024 * 1024)).toFixed(2)} MB/s`
-                : '0 MB/s';
-
-              const etaSeconds = Math.ceil(progress.eta);
-              const etaMinutes = Math.floor(etaSeconds / 60);
-              const etaSecs = etaSeconds % 60;
-              const eta = `${etaMinutes}:${etaSecs.toString().padStart(2, '0')}`;
-
-              updateJob(jobId, {
-                progress: isNaN(progress.percentage) ? 0 : Math.min(100, progress.percentage),
-                fileSize: displayFileSize,
-                downloadedSize,
-                speed,
-                eta,
-              });
-
-              // Stop polling when completed or failed
-              if (progress.status === 'completed' || progress.status === 'failed') {
-                if (progressInterval) {
-                  clearInterval(progressInterval);
-                }
-              }
-            } catch (error) {
-              handleAppError(error, { title: 'Error', defaultMessage: 'Error getting progress', notify: false, logLabel: 'Error getting progress:' });
-            }
-          }, 500); // Poll every 500ms
-        };
-
-        startProgressPolling();
-
-        const result = await downloadPromise;
-
-        if (progressInterval) {
-          clearInterval(progressInterval);
+        if (response.success) {
+          // Start polling (background handled by backend)
+          pollDownloadProgress(jobId, {
+            title,
+            channel: currentMetadata.channel,
+            thumbnail,
+            mode,
+            quality: mode === 'video' ? quality : undefined,
+            format: mode === 'audio' ? format : undefined
+          });
+        } else {
+          throw new Error(response.status || "Failed to start");
         }
 
-        if (result.success) {
-          // Check if this was a pause/cancel - don't mark as completed!
-          if (result.status === 'paused' || result.status === 'canceled') {
-            // Don't update status - it was already set by the pause/cancel handler
-            console.log(`Download ${jobId} was ${result.status}, not marking as completed`);
-          } else {
-            // Actual completion - update job status to completed with actual file size
-            updateJob(jobId, {
-              status: 'completed' as const,
-              progress: 100,
-              fileSize: result.fileSize,
-              downloadedSize: result.fileSize,
-              eta: '0:00',
-              speed: '0 MB/s',
-              completedAt: new Date(),
-            });
-
-            // Add to history
-            addToHistory({
-              id: crypto.randomUUID(),
-              title,
-              channel: currentMetadata.channel,
-              thumbnail, // Use individual video thumbnail
-              mode,
-              quality: mode === 'video' ? quality : undefined,
-              format: mode === 'audio' ? format : undefined,
-              fileSize: result.fileSize,
-              filePath: result.filePath,
-              completedAt: new Date(),
-            });
-
-            addNotification({
-              type: 'success',
-              title: 'Download Complete',
-              message: `${title} (${result.fileSize}) saved`,
-            });
-          }
-        }
       } catch (error) {
         const message = handleAppError(error, {
           title: 'Download Failed',

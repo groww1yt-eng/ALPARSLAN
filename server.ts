@@ -15,7 +15,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
-import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload } from './src/server/downloadManager.js';
+import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload, getActiveDownloads } from './src/server/downloadManager.js';
 import { getNamingTemplates, setNamingTemplates } from './src/server/settingsStore.js';
 import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/namingResolver.js';
 import type { ContentType, DownloadMode } from './src/server/namingResolver.js';
@@ -207,7 +207,9 @@ app.post('/api/download', async (req: Request, res: Response) => {
     const fileSize = await getFileSize(url, mode, quality);
 
     // Pass fileSize and resolvedFilename to downloadVideo
-    const result = await downloadVideo({
+    // Start download in background (fire and forget)
+    // The frontend will poll /api/download/progress/:jobId for status
+    downloadVideo({
       url,
       videoId,
       jobId,
@@ -219,9 +221,18 @@ app.post('/api/download', async (req: Request, res: Response) => {
       resolvedFilename,
       downloadSubtitles,
       subtitleLanguage,
+    }).catch(err => {
+      console.error(`Background download failed for ${jobId}:`, err);
+      // Error is already handled/logged in downloadVideo via failDownload
     });
 
-    res.json(result);
+    // Return success immediately
+    res.json({
+      success: true,
+      jobId,
+      status: 'queued',
+      message: 'Download started in background'
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
 
@@ -231,8 +242,19 @@ app.post('/api/download', async (req: Request, res: Response) => {
       return;
     }
 
-    console.error('Error downloading video:', message);
+    console.error('Error starting video download:', message);
     res.status(500).json({ error: message });
+  }
+});
+
+// Get all active downloads
+app.get('/api/downloads/active', (_req: Request, res: Response) => {
+  try {
+    const downloads = getActiveDownloads();
+    res.json({ downloads });
+  } catch (error) {
+    console.error('Error fetching active downloads:', error);
+    res.status(500).json({ error: 'Failed to fetch active downloads' });
   }
 });
 

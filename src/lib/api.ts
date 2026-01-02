@@ -125,8 +125,13 @@ export interface DownloadProgressData {
   percentage: number;
   speed: number; // bytes per second
   eta: number; // seconds remaining
-  status: 'downloading' | 'paused' | 'completed' | 'failed';
+  status: 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
   error?: string;
+  result?: {
+    filePath: string;
+    fileName: string;
+    fileSize: string;
+  };
 }
 
 export async function getDownloadProgress(jobId: string): Promise<DownloadProgressData> {
@@ -163,6 +168,14 @@ export async function cancelDownload(jobId: string): Promise<{ success: boolean 
   });
   if (!response.ok) {
     throw new Error("Failed to cancel download");
+  }
+  return response.json();
+}
+
+export async function fetchActiveDownloads(): Promise<{ downloads: Record<string, DownloadProgressData> }> {
+  const response = await fetch(`${API_BASE_URL}/api/downloads/active`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch active downloads");
   }
   return response.json();
 }
