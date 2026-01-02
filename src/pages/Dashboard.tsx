@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize, fetchActiveDownloads } from '@/lib/api';
 import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
@@ -40,6 +40,10 @@ export default function Dashboard() {
   const [currentNamingTemplate, setCurrentNamingTemplate] = useState('');
   const [estimatedSize, setEstimatedSize] = useState<string>('Calculating...');
   const [isCalculatingSize, setIsCalculatingSize] = useState(false);
+
+  // Rate limiting refs
+  const lastFetchTime = useRef<number>(0);
+  const lastDownloadTime = useRef<number>(0);
 
   useEffect(() => {
     if (currentMetadata?.isPlaylist && currentMetadata.videoCount) {
@@ -180,10 +184,26 @@ export default function Dashboard() {
   }, [contentType, mode, settings.namingTemplates]);
 
   const handleFetchMetadata = async () => {
+    // Rate limiting: 2 seconds
+    const now = Date.now();
+    if (now - lastFetchTime.current < 2000) {
+      const waitSeconds = Math.ceil((2000 - (now - lastFetchTime.current)) / 1000);
+      addNotification({
+        type: 'warning',
+        title: 'Please Wait',
+        message: `Please wait ${waitSeconds} seconds before fetching again.`
+      });
+      return;
+    }
+
     if (!url.trim()) {
       addNotification({ type: 'error', title: 'Empty URL', message: 'Please enter a YouTube URL' });
       return;
     }
+
+    // Update timestamp to mark this as a "consumed" attempt
+    lastFetchTime.current = now;
+
     if (!isValidYouTubeUrl(url)) {
       addNotification({ type: 'error', title: 'Invalid URL', message: 'Please enter a valid YouTube URL' });
       return;
@@ -367,6 +387,19 @@ export default function Dashboard() {
   }, [url, currentMetadata, mode, quality, format, playlistMode, rangeStart, rangeEnd, selectedVideos]);
 
   const handleStartDownload = async () => {
+    // Rate limiting: 5 seconds
+    const now = Date.now();
+    if (now - lastDownloadTime.current < 5000) {
+      const waitSeconds = Math.ceil((5000 - (now - lastDownloadTime.current)) / 1000);
+      addNotification({
+        type: 'warning',
+        title: 'Please Wait',
+        message: `Please wait ${waitSeconds} seconds before downloading again.`
+      });
+      return;
+    }
+    lastDownloadTime.current = now;
+
     if (!currentMetadata) return;
 
     const processDownload = async (videoId: string, title: string, videoUrl: string, thumbnail: string, playlistIndex?: number) => {
