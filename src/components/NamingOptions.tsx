@@ -21,6 +21,7 @@ interface NamingOptionsProps {
   mode: DownloadMode;
   currentTemplate: string;
   onTemplateChange: (template: string) => void;
+  disabled?: boolean;
 }
 
 export function NamingOptions({
@@ -28,6 +29,7 @@ export function NamingOptions({
   mode,
   currentTemplate,
   onTemplateChange,
+  disabled
 }: NamingOptionsProps) {
   const { settings, updateSettings, addNotification } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
@@ -284,9 +286,13 @@ export function NamingOptions({
           <Button
             variant="secondary"
             onClick={() => setIsEditing(true)}
-            className="w-full px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors"
+            disabled={disabled}
+            className={cn(
+              "w-full px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors",
+              disabled && "opacity-50 cursor-not-allowed hover:bg-primary/10"
+            )}
           >
-            Edit Template
+            {disabled ? 'Templates locked during download' : 'Edit Template'}
           </Button>
 
         </div>

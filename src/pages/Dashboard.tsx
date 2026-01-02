@@ -5,7 +5,8 @@ import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
 import { NamingOptions } from '@/components/NamingOptions';
 import { Switch } from '@/components/ui/switch';
-import { Link2, Video, Music, Download, Settings2, Loader2, ListVideo, Type } from 'lucide-react';
+import { Link2, Video, Music, Download, Settings2, Loader2, ListVideo, Type, Lock } from 'lucide-react';
+import { useSessionLock } from '@/hooks/useSessionLock';
 import type { DownloadMode, VideoQuality, AudioFormat, PlaylistMode, PlaylistVideo, ContentType } from '@/types';
 import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import {
 
 export default function Dashboard() {
   const { settings, currentMetadata, setCurrentMetadata, addJob, addNotification, updateJob, addToHistory } = useAppStore();
+  const { isLocked, showLockedMessage } = useSessionLock();
 
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -611,29 +613,36 @@ export default function Dashboard() {
 
       {/* Download Mode */}
       <div className="card-elevated p-4 space-y-4">
-        <h3 className="font-semibold flex items-center gap-2"><Settings2 className="w-4 h-4" /> Download Options</h3>
+        <h3 className="font-semibold flex items-center gap-2">
+          {isLocked ? <Lock className="w-4 h-4 text-primary" /> : <Settings2 className="w-4 h-4" />}
+          Download Options
+        </h3>
 
         <div className="grid grid-cols-2 gap-2">
 
           <button
-            onClick={() => setMode('video')}
+            disabled={isLocked}
+            onClick={() => isLocked ? showLockedMessage() : setMode('video')}
             className={cn(
               'flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all duration-300 ease-out',
               mode === 'video'
                 ? 'gradient-primary text-white'
-                : 'px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors'
+                : 'px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors',
+              isLocked && 'opacity-50 cursor-not-allowed hover:bg-transparent'
             )}>
             <Video className="w-5 h-5" />
             Video + Audio
           </button>
 
           <button
-            onClick={() => setMode('audio')}
+            disabled={isLocked}
+            onClick={() => isLocked ? showLockedMessage() : setMode('audio')}
             className={cn(
               'flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all duration-300 ease-out',
               mode === 'audio'
                 ? 'gradient-primary text-white'
-                : 'px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors'
+                : 'px-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium transition-colors',
+              isLocked && 'opacity-50 cursor-not-allowed hover:bg-transparent'
             )}>
             <Music className="w-5 h-5" />
             Audio Only
@@ -649,23 +658,26 @@ export default function Dashboard() {
                 Quality
               </label>
 
-              <Select
-                value={quality}
-                onValueChange={(value) => setQuality(value as VideoQuality)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select quality" />
-                </SelectTrigger>
+              <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+                <Select
+                  disabled={isLocked}
+                  value={quality}
+                  onValueChange={(value) => setQuality(value as VideoQuality)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select quality" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  <SelectItem value="360p">360p</SelectItem>
-                  <SelectItem value="480p">480p SD</SelectItem>
-                  <SelectItem value="720p">720p HD</SelectItem>
-                  <SelectItem value="1080p">1080p FHD</SelectItem>
-                  <SelectItem value="1440p">1440p 2K</SelectItem>
-                  <SelectItem value="2160p">2160p 4K</SelectItem>
-                </SelectContent>
-              </Select>
+                  <SelectContent>
+                    <SelectItem value="360p">360p</SelectItem>
+                    <SelectItem value="480p">480p SD</SelectItem>
+                    <SelectItem value="720p">720p HD</SelectItem>
+                    <SelectItem value="1080p">1080p FHD</SelectItem>
+                    <SelectItem value="1440p">1440p 2K</SelectItem>
+                    <SelectItem value="2160p">2160p 4K</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           ) : (
             <>
@@ -673,21 +685,24 @@ export default function Dashboard() {
                 Format
               </label>
 
-              <Select
-                value={format}
-                onValueChange={(value) => setFormat(value as AudioFormat)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select format" />
-                </SelectTrigger>
+              <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+                <Select
+                  disabled={isLocked}
+                  value={format}
+                  onValueChange={(value) => setFormat(value as AudioFormat)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select format" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  <SelectItem value="mp3">MP3</SelectItem>
-                  <SelectItem value="m4a">M4A</SelectItem>
-                  <SelectItem value="wav">WAV</SelectItem>
-                  <SelectItem value="opus">OPUS</SelectItem>
-                </SelectContent>
-              </Select>
+                  <SelectContent>
+                    <SelectItem value="mp3">MP3</SelectItem>
+                    <SelectItem value="m4a">M4A</SelectItem>
+                    <SelectItem value="wav">WAV</SelectItem>
+                    <SelectItem value="opus">OPUS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           )}
         </div>
@@ -718,7 +733,9 @@ export default function Dashboard() {
               duration-300
             "
           >
-            <Switch checked={downloadSubs} onCheckedChange={setDownloadSubs} />
+            <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+              <Switch disabled={isLocked} checked={downloadSubs} onCheckedChange={setDownloadSubs} />
+            </div>
             <span className="text-sm">Download Subtitles</span>
           </div>
         )}
@@ -802,6 +819,7 @@ export default function Dashboard() {
       <NamingOptions
         contentType={contentType}
         mode={mode}
+        disabled={isLocked}
         currentTemplate={currentNamingTemplate}
         onTemplateChange={setCurrentNamingTemplate}
       />

@@ -4,7 +4,8 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from '@/components/ConfirmModal';
-import { Settings as SettingsIcon, Folder, Save, RotateCcw } from 'lucide-react';
+import { Settings as SettingsIcon, Folder, Save, RotateCcw, Lock } from 'lucide-react';
+import { useSessionLock } from '@/hooks/useSessionLock';
 import type { DownloadMode, VideoQuality, AudioFormat } from '@/types';
 import { useNavigate, useLocation, useBlocker } from 'react-router-dom';
 import {
@@ -19,6 +20,7 @@ import {
 
 export default function Settings() {
   const { settings, updateSettings, resetSettings, addNotification } = useAppStore();
+  const { isLocked, showLockedMessage } = useSessionLock();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [draftSettings, setDraftSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
@@ -80,29 +82,36 @@ export default function Settings() {
     <div className="p-4 space-y-4 max-w-2xl mx-auto">
       <div className="card-elevated p-4 space-y-4">
         <h3 className="font-semibold flex items-center gap-2">
-          <Folder className="w-4 h-4" />
+          {isLocked ? <Lock className="w-4 h-4 text-primary" /> : <Folder className="w-4 h-4" />}
           Output Folder
         </h3>
 
-        <Input
-          value={draftSettings.outputFolder}
-          onChange={(e) => {
-            setDraftSettings(prev => ({
-              ...prev,
-              outputFolder: e.target.value
-            }))
-            setHasChanges(true);
-          }}
-        />
+        <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+          <Input
+            value={draftSettings.outputFolder}
+            disabled={isLocked}
+            onChange={(e) => {
+              setDraftSettings(prev => ({
+                ...prev,
+                outputFolder: e.target.value
+              }))
+              setHasChanges(true);
+            }}
+          />
+        </div>
       </div>
 
       <div className="card-elevated p-4 space-y-4">
-        <h3 className="font-semibold flex items-center gap-2"><SettingsIcon className="w-4 h-4" /> Default Settings</h3>
+        <h3 className="font-semibold flex items-center gap-2">
+          {isLocked ? <Lock className="w-4 h-4 text-primary" /> : <SettingsIcon className="w-4 h-4" />}
+          Default Settings
+        </h3>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div onClickCapture={isLocked ? showLockedMessage : undefined}>
             <label className="text-sm text-muted-foreground mb-2 block">Mode</label>
             <Select
+              disabled={isLocked}
               value={draftSettings.defaultMode}
               onValueChange={(value) => {
                 setDraftSettings(prev => ({
@@ -122,9 +131,10 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div onClickCapture={isLocked ? showLockedMessage : undefined}>
             <label className="text-sm text-muted-foreground mb-2 block">Quality</label>
             <Select
+              disabled={isLocked}
               value={draftSettings.defaultQuality}
               onValueChange={(value) => {
                 setDraftSettings(prev => ({
@@ -148,9 +158,10 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div onClickCapture={isLocked ? showLockedMessage : undefined}>
             <label className="text-sm text-muted-foreground mb-2 block">Audio Format</label>
             <Select
+              disabled={isLocked}
               value={draftSettings.defaultFormat}
               onValueChange={(value) => {
                 setDraftSettings(prev => ({
@@ -172,9 +183,10 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          <div onClickCapture={isLocked ? showLockedMessage : undefined}>
             <label className="text-sm text-muted-foreground mb-2 block">Subtitle Language</label>
             <Select
+              disabled={isLocked}
               value={draftSettings.subtitleLanguage}
               onValueChange={(value) => {
                 setDraftSettings(prev => ({
@@ -195,8 +207,9 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" onClickCapture={isLocked ? showLockedMessage : undefined}>
           <Switch
+            disabled={isLocked}
             checked={draftSettings.downloadSubtitles}
             onCheckedChange={(checked) => {
               setDraftSettings(prev => ({
@@ -209,8 +222,9 @@ export default function Settings() {
           <span className="text-sm">Download Subtitles</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" onClickCapture={isLocked ? showLockedMessage : undefined}>
           <Switch
+            disabled={isLocked}
             checked={draftSettings.perChannelFolders}
             onCheckedChange={(checked) => {
               setDraftSettings(prev => ({
