@@ -45,6 +45,17 @@ export default function Dashboard() {
   const lastFetchTime = useRef<number>(0);
   const lastDownloadTime = useRef<number>(0);
 
+  // Track active polling intervals for cleanup
+  const activeIntervals = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      activeIntervals.current.forEach(interval => clearInterval(interval));
+      activeIntervals.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     if (currentMetadata?.isPlaylist && currentMetadata.videoCount) {
       setRangeStart('1');
@@ -88,10 +99,15 @@ export default function Dashboard() {
 
   // Poll progress for a specific job
   const pollDownloadProgress = (jobId: string, details: { title: string, channel: string, thumbnail: string, mode: DownloadMode, quality?: VideoQuality, format?: AudioFormat }) => {
-    let progressInterval: NodeJS.Timeout | null = null;
+    // Clear any existing interval for this job
+    if (activeIntervals.current.has(jobId)) {
+      clearInterval(activeIntervals.current.get(jobId)!);
+      activeIntervals.current.delete(jobId);
+    }
+
     let lastFileSize = 'Calculating...';
 
-    progressInterval = setInterval(async () => {
+    const intervalId = setInterval(async () => {
       try {
         const progress = await getDownloadProgress(jobId);
 
@@ -126,9 +142,8 @@ export default function Dashboard() {
 
         // Stop polling when completed or failed
         if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'canceled') {
-          if (progressInterval) {
-            clearInterval(progressInterval);
-          }
+          clearInterval(intervalId);
+          activeIntervals.current.delete(jobId);
 
           if (progress.status === 'completed' && progress.result) {
             // Actual completion - update job status to completed with actual file size from result
@@ -165,9 +180,12 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error(`Polling error for ${jobId}:`, error);
-        if (progressInterval) clearInterval(progressInterval);
+        clearInterval(intervalId);
+        activeIntervals.current.delete(jobId);
       }
     }, 500);
+
+    activeIntervals.current.set(jobId, intervalId);
   };
 
   // Determine content type based on metadata

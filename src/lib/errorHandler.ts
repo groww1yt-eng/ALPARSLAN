@@ -26,7 +26,7 @@ function getFriendlyErrorMessage(error: any, defaultMessage: string): string {
     lowerMessage.includes('econnrefused') ||
     lowerMessage.includes('connect')
   ) {
-    return 'Network error: Please check your internet connection and try again.';
+    return 'Network error: Cannot connect to the server. Please ensure the backend server is running.';
   }
 
   // Not Found / 404
