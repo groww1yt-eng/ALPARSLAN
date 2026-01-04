@@ -250,14 +250,17 @@ export default function Settings() {
         </Button>
 
         {/* Reset */}
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setShowResetConfirm(true)}
-          title="Reset to default"
-        >
-          <RotateCcw className="w-4 h-4" />
-        </Button>
+        <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+          <Button
+            variant="secondary"
+            size="icon"
+            disabled={isLocked}
+            onClick={() => setShowResetConfirm(true)}
+            title="Reset to default"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <ConfirmModal

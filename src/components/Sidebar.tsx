@@ -15,9 +15,11 @@ import {
   Folder
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useSessionLock } from '@/hooks/useSessionLock';
 
 export function Sidebar() {
   const { sidebarOpen, setSidebarOpen, settings, resetSettings, addNotification } = useAppStore();
+  const { isLocked, showLockedMessage } = useSessionLock();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const location = useLocation();
 
@@ -125,13 +127,19 @@ export function Sidebar() {
               <span className="truncate text-xs">{settings.outputFolder}</span>
             </div>
           </div>
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-sidebar-accent hover:bg-sidebar-accent/80 rounded-lg text-sm text-sidebar-foreground/70 transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset Defaults
-          </button>
+          <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+            <button
+              disabled={isLocked}
+              onClick={() => setShowResetConfirm(true)}
+              className={cn(
+                "mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 bg-sidebar-accent hover:bg-sidebar-accent/80 rounded-lg text-sm text-sidebar-foreground/70 transition-colors",
+                isLocked && "opacity-50 cursor-not-allowed hover:bg-sidebar-accent"
+              )}
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset Defaults
+            </button>
+          </div>
         </div>
 
       </aside>
