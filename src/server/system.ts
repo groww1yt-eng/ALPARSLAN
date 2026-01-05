@@ -1,6 +1,8 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import dns from 'dns';
+import fs from 'fs';
+import path from 'path';
 
 const execAsync = promisify(exec);
 const dnsResolve = promisify(dns.resolve);
@@ -27,7 +29,6 @@ export interface SystemInfo {
             available: boolean;
         };
     };
-    // New fields for enhanced compatibility
     compatibility: {
         status: 'compatible' | 'partial' | 'incompatible';
         message: string;
@@ -39,7 +40,46 @@ export interface SystemInfo {
             meetsRequirement: boolean;
         };
     };
+    // Advanced Diagnostics
+    permissions: {
+        writeAccess: boolean;
+        outputFolder: string;
+    };
+    dns: {
+        status: 'ok' | 'fail' | 'slow';
+        responseTime: number; // ms
+    };
+    ipReputation: {
+        status: 'clean' | 'blocked' | 'throttled' | 'unknown';
+        message: string;
+    };
+    ffmpegCodecs: {
+        mp3: boolean;
+        aac: boolean;
+        h264: boolean;
+    };
+    pythonInfo: {
+        version: string;
+        isVenv: boolean;
+    };
+    cookies: {
+        present: boolean;
+        fileName: string;
+        sizeBytes: number;
+    };
+    proxy: {
+        detected: boolean;
+        url: string;
+        status: 'working' | 'failing' | 'none';
+    };
+    networkPath: {
+        clientToBackend: boolean; // Always true if reaching this
+        backendToInternet: boolean;
+        backendToYouTube: boolean;
+    };
+    lastChecked: string;
 }
+
 
 import { API_VERSION } from './config.js';
 
@@ -70,7 +110,98 @@ async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partia
     }
 }
 
-export async function getSystemInfo(): Promise<SystemInfo> {
+// Check Folder Write Permissions
+async function checkPermissions(folder: string): Promise<{ writeAccess: boolean; outputFolder: string }> {
+    const resolvedPath = path.resolve(folder);
+    try {
+        if (!fs.existsSync(resolvedPath)) {
+            // Try to create it to check permissions
+            fs.mkdirSync(resolvedPath, { recursive: true });
+        }
+        const testFile = path.join(resolvedPath, `.alp_write_test_${Date.now()}`);
+        fs.writeFileSync(testFile, 'test');
+        fs.unlinkSync(testFile);
+        return { writeAccess: true, outputFolder: resolvedPath };
+    } catch (e) {
+        return { writeAccess: false, outputFolder: resolvedPath };
+    }
+}
+
+// Check DNS Health
+async function checkDnsHealth(): Promise<{ status: 'ok' | 'fail' | 'slow'; responseTime: number }> {
+    const start = Date.now();
+    try {
+        await dnsResolve('youtube.com');
+        const duration = Date.now() - start;
+        return {
+            status: duration > 500 ? 'slow' : 'ok',
+            responseTime: duration
+        };
+    } catch (e) {
+        return { status: 'fail', responseTime: Date.now() - start };
+    }
+}
+
+// Check IP Reputation
+async function checkIpReputation(): Promise<{ status: 'clean' | 'blocked' | 'throttled' | 'unknown'; message: string }> {
+    try {
+        // Simple fetch test to YouTube
+        const res = await fetch('https://www.youtube.com/', {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (res.status === 403) return { status: 'blocked', message: 'IP seems to be blocked by YouTube (403 Forbidden)' };
+        if (res.status === 429) return { status: 'throttled', message: 'IP is being rate-limited (429 Too Many Requests)' };
+        if (res.ok) return { status: 'clean', message: 'IP connectivity is healthy' };
+        return { status: 'unknown', message: `Server returned status ${res.status}` };
+    } catch (e: any) {
+        return { status: 'unknown', message: e.message || 'Connectivity check failed' };
+    }
+}
+
+// Check FFmpeg Codecs
+async function checkFfmpegCodecs(): Promise<{ mp3: boolean; aac: boolean; h264: boolean }> {
+    const output = await getCommandOutput('ffmpeg -codecs');
+    return {
+        mp3: output.includes('libmp3lame') || output.includes('mp3'),
+        aac: output.includes('aac'),
+        h264: output.includes('libx264') || output.includes('h264')
+    };
+}
+
+// Get Python Environment Info
+async function getPythonInfo(): Promise<{ version: string; isVenv: boolean }> {
+    const version = await getCommandOutput('python --version');
+    const isVenv = !!(process.env.VIRTUAL_ENV || process.env.CONDA_PREFIX);
+    return { version: version || 'Not detected', isVenv };
+}
+
+// Check YouTube Cookies
+async function checkCookieStatus(): Promise<{ present: boolean; fileName: string; sizeBytes: number }> {
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+    if (fs.existsSync(cookiePath)) {
+        const stats = fs.statSync(cookiePath);
+        return { present: true, fileName: 'cookies.txt', sizeBytes: stats.size };
+    }
+    return { present: false, fileName: '', sizeBytes: 0 };
+}
+
+// Check Proxy Status
+async function checkProxyStatus(): Promise<{ detected: boolean; url: string; status: 'working' | 'failing' | 'none' }> {
+    const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy;
+    if (!proxyUrl) return { detected: false, url: '', status: 'none' };
+
+    try {
+        // Simple connectivity test through the proxy environment
+        const res = await fetch('https://www.google.com', { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+        return { detected: true, url: proxyUrl, status: res.ok ? 'working' : 'failing' };
+    } catch {
+        return { detected: true, url: proxyUrl, status: 'failing' };
+    }
+}
+
+export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
+    const defaultOutput = outputPath || 'C:\\Users\\ariya\\Downloads\\ALP';
+
     const info: SystemInfo = {
         versions: {
             node: process.version,
@@ -101,7 +232,20 @@ export async function getSystemInfo(): Promise<SystemInfo> {
                 minVersion: MIN_YTDLP_VERSION,
                 meetsRequirement: false
             }
-        }
+        },
+        permissions: { writeAccess: false, outputFolder: defaultOutput },
+        dns: { status: 'fail', responseTime: 0 },
+        ipReputation: { status: 'unknown', message: 'Checking...' },
+        ffmpegCodecs: { mp3: false, aac: false, h264: false },
+        pythonInfo: { version: 'Checking...', isVenv: false },
+        cookies: { present: false, fileName: '', sizeBytes: 0 },
+        proxy: { detected: false, url: '', status: 'none' },
+        networkPath: {
+            clientToBackend: true,
+            backendToInternet: false,
+            backendToYouTube: false
+        },
+        lastChecked: new Date().toISOString()
     };
 
     // Check Node (already done)
@@ -185,5 +329,19 @@ export async function getSystemInfo(): Promise<SystemInfo> {
         info.issues.push(`Installed yt-dlp version (${info.versions.ytdlp}) is older than recommended (${MIN_YTDLP_VERSION}). Update strongly recommended.`);
     }
 
+    // Advanced Diagnostics
+    info.permissions = await checkPermissions(defaultOutput);
+    info.dns = await checkDnsHealth();
+    info.ipReputation = await checkIpReputation();
+    info.ffmpegCodecs = await checkFfmpegCodecs();
+    info.pythonInfo = await getPythonInfo();
+    info.cookies = await checkCookieStatus();
+    info.proxy = await checkProxyStatus();
+
+    // Populate Network Path
+    info.networkPath.backendToInternet = info.health.internet;
+    info.networkPath.backendToYouTube = info.compatibility.status === 'compatible' || info.compatibility.status === 'partial';
+
     return info;
 }
+

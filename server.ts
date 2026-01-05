@@ -46,6 +46,15 @@ const distPath = path.resolve(process.cwd(), 'dist');
 app.use(express.static(distPath));
 
 // Health check
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    version: API_VERSION,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Alias for convenience
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -334,15 +343,17 @@ app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
 });
 
 // System Info
-app.get('/api/system-info', async (_req: Request, res: Response) => {
+app.get('/api/system-info', async (req: Request, res: Response) => {
   try {
-    const info = await getSystemInfo();
+    const outputPath = req.query.outputPath as string | undefined;
+    const info = await getSystemInfo(outputPath);
     res.json(info);
   } catch (error) {
     console.error('Error fetching system info:', error);
     res.status(500).json({ error: 'Failed to fetch system info' });
   }
 });
+
 
 // SPA Fallback - serve index.html for all non-API routes
 app.get('*', (_req: Request, res: Response) => {
