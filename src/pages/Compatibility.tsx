@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { API_BASE_URL } from '@/config';
+import { API_BASE_URL, EXPECTED_API_VERSION } from '@/config';
 import { useAppStore } from '@/store/useAppStore';
 import {
     Server,
@@ -154,7 +154,38 @@ export default function Compatibility() {
                             <p className="text-foreground/80">{info.compatibility.message}</p>
                         </div>
                     </div>
+
+                    {/* Integrated API Version Check */}
+                    <div className={cn(
+                        "mt-4 p-4 rounded-lg border flex items-center justify-between",
+                        info.versions.backend === EXPECTED_API_VERSION ? "bg-muted/30 border-border" : "bg-destructive/10 border-destructive/20"
+                    )}>
+                        <div className="flex items-center gap-3">
+                            <Server className={cn("w-5 h-5", info.versions.backend === EXPECTED_API_VERSION ? "text-muted-foreground" : "text-destructive")} />
+                            <div>
+                                <p className={cn("text-sm font-medium", info.versions.backend !== EXPECTED_API_VERSION && "text-destructive")}>
+                                    API Version: {info.versions.backend}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Expected: {EXPECTED_API_VERSION}
+                                </p>
+                            </div>
+                        </div>
+
+                        {info.versions.backend === EXPECTED_API_VERSION ? (
+                            <div className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                                <CheckCircle2 className="w-4 h-4" />
+                                Synchronized
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-1 text-destructive text-xs font-medium">
+                                <AlertTriangle className="w-4 h-4" />
+                                Mismatch detected
+                            </div>
+                        )}
+                    </div>
                 </div>
+
 
                 {/* System Versions */}
                 <div className="bg-card border rounded-xl p-5 shadow-sm">
@@ -216,24 +247,6 @@ export default function Compatibility() {
                 </div>
             </div>
 
-            {/* API Check */}
-            <div className={cn("border rounded-xl p-5 shadow-sm", info.versions.backend === 'v1.0.0' ? "bg-card" : "bg-destructive/10 border-destructive")}>
-                <div className="flex items-center gap-2 mb-2">
-                    <Server className="w-5 h-5" />
-                    <h2 className="font-semibold text-lg">API Compatibility</h2>
-                </div>
-                {info.versions.backend === 'v1.0.0' ? (
-                    <p className="text-muted-foreground text-sm">Frontend and Backend versions match (v1.0.0).</p>
-                ) : (
-                    <div className="sm:flex items-start gap-3 mt-2">
-                        <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-medium text-destructive">Version Mismatch Detected</p>
-                            <p className="text-sm mt-1">Frontend expects v1.0.0 but Backend is {info.versions.backend}. Please update your server.</p>
-                        </div>
-                    </div>
-                )}
-            </div>
 
             {/* Updates */}
             <div className="bg-card border rounded-xl p-5 shadow-sm">

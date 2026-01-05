@@ -1,9 +1,9 @@
 import type { VideoMetadata } from '@/types';
-import { API_BASE_URL } from '@/config';
+import { makeApiCall } from './apiClient';
 
 // ================= METADATA =================
 export async function fetchMetadata(url: string): Promise<VideoMetadata> {
-  const response = await fetch(`${API_BASE_URL}/api/metadata`, {
+  const response = await makeApiCall('/api/metadata', {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -49,7 +49,7 @@ export async function downloadVideo(
     createPerChannelFolder?: boolean;
   }
 ): Promise<{ success: boolean; filePath: string; fileName: string; fileSize: string; status?: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/download`, {
+  const response = await makeApiCall('/api/download', {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -97,27 +97,29 @@ export async function getEstimatedFileSize(
   playlistItems?: string,
   signal?: AbortSignal
 ): Promise<{ fileSize: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/filesize`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ url, mode, quality, format, playlistItems }),
-    signal
-  });
+  try {
+    const response = await makeApiCall('/api/filesize', {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url, mode, quality, format, playlistItems }),
+      signal
+    });
 
-  if (!response.ok) {
-    // Attempt to read error for debugging, but estimation failure shouldn't block UI
-    try {
-      const errorData = await response.json();
-      console.warn("Estimation failed:", errorData.error);
-    } catch { }
+    if (!response.ok) {
+      try {
+        const errorData = await response.json();
+        console.warn("Estimation failed:", errorData.error);
+      } catch { }
+      return { fileSize: 0 };
+    }
 
-    // Return 0 if we can't get size - download will proceed anyway
+    return response.json();
+  } catch (err) {
+    console.warn("Estimation failed:", err);
     return { fileSize: 0 };
   }
-
-  return response.json();
 }
 
 // ================= PROGRESS =================
@@ -137,7 +139,7 @@ export interface DownloadProgressData {
 }
 
 export async function getDownloadProgress(jobId: string): Promise<DownloadProgressData> {
-  const response = await fetch(`${API_BASE_URL}/api/download/progress/${jobId}`);
+  const response = await makeApiCall(`/api/download/progress/${jobId}`);
   if (!response.ok) {
     throw new Error("Failed to get download progress");
   }
@@ -145,7 +147,7 @@ export async function getDownloadProgress(jobId: string): Promise<DownloadProgre
 }
 
 export async function pauseDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/download/pause/${jobId}`, {
+  const response = await makeApiCall(`/api/download/pause/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {
@@ -155,7 +157,7 @@ export async function pauseDownload(jobId: string): Promise<{ success: boolean }
 }
 
 export async function resumeDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/download/resume/${jobId}`, {
+  const response = await makeApiCall(`/api/download/resume/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {
@@ -165,7 +167,7 @@ export async function resumeDownload(jobId: string): Promise<{ success: boolean 
 }
 
 export async function cancelDownload(jobId: string): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/download/cancel/${jobId}`, {
+  const response = await makeApiCall(`/api/download/cancel/${jobId}`, {
     method: "POST"
   });
   if (!response.ok) {
@@ -175,9 +177,10 @@ export async function cancelDownload(jobId: string): Promise<{ success: boolean 
 }
 
 export async function fetchActiveDownloads(): Promise<{ downloads: Record<string, DownloadProgressData> }> {
-  const response = await fetch(`${API_BASE_URL}/api/downloads/active`);
+  const response = await makeApiCall('/api/downloads/active');
   if (!response.ok) {
     throw new Error("Failed to fetch active downloads");
   }
   return response.json();
 }
+

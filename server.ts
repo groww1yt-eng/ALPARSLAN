@@ -20,6 +20,8 @@ import { getNamingTemplates, setNamingTemplates } from './src/server/settingsSto
 import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/namingResolver.js';
 import type { ContentType, DownloadMode } from './src/server/namingResolver.js';
 import { validateAndSanitizeUrl } from './src/server/validation.js';
+import { API_VERSION } from './src/server/config.js';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -32,14 +34,26 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 app.use(cors());
 app.use(express.json());
 
+// API Version Middleware
+app.use((_req, res, next) => {
+  res.setHeader('X-API-Version', API_VERSION);
+  next();
+});
+
+
 // Serve static frontend files (from dist folder)
 const distPath = path.resolve(process.cwd(), 'dist');
 app.use(express.static(distPath));
 
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok' });
+  res.json({
+    status: 'ok',
+    version: API_VERSION,
+    timestamp: new Date().toISOString()
+  });
 });
+
 
 // Naming templates (backend persisted)
 app.get('/api/naming-templates', (_req: Request, res: Response) => {

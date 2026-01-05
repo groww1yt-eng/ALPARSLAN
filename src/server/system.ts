@@ -41,6 +41,8 @@ export interface SystemInfo {
     };
 }
 
+import { API_VERSION } from './config.js';
+
 // Helper to run command and get output safely
 async function getCommandOutput(command: string): Promise<string> {
     try {
@@ -74,8 +76,9 @@ export async function getSystemInfo(): Promise<SystemInfo> {
             node: process.version,
             ytdlp: 'Not detected',
             ffmpeg: 'Not detected',
-            backend: 'v1.0.0' // Hardcoded for now
+            backend: API_VERSION
         },
+
         health: {
             internet: false,
             ytdlp: false,
