@@ -48,3 +48,6 @@ coverage/
 
 # TypeScript Build Info
 *.tsbuildinfo
+
+# Security
+cookies.txt

@@ -69,6 +69,12 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     ytdlpArgs.push('--no-warnings');   // Reduce noise
     ytdlpArgs.push(url);
 
+    // Check for cookies file
+    const cookiePath = 'cookies.txt';
+    if (fs.existsSync(cookiePath)) {
+      ytdlpArgs.push('--cookies', cookiePath);
+    }
+
     const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
 
     let output = '';
@@ -223,6 +229,12 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
     // URL
     ytdlpArgs.push(url);
+
+    // Check for cookies file
+    const cookiePath = 'cookies.txt';
+    if (fs.existsSync(cookiePath)) {
+      ytdlpArgs.push('--cookies', cookiePath);
+    }
 
     console.log(`Starting download (spawn): ${url}`);
     console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);

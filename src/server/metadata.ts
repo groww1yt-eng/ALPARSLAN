@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import fs from 'fs';
 import type { VideoMetadata, PlaylistVideo } from '../types/index.js';
 
 function isValidYouTubeUrl(url: string): boolean {
@@ -30,19 +31,23 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
         throw new Error('yt-dlp is not installed. Please run: pip install yt-dlp');
       }
     }
-    const command = `"${pythonCmd}" -m yt_dlp -j --no-warnings ${flatFlag} "${url.replace(/"/g, '\\"')}"`;
+    // Check for cookies file
+    const cookiePath = 'cookies.txt';
+    const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+
+    const command = `"${pythonCmd}" -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} "${url.replace(/"/g, '\\"')}"`;
     const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
-    
+
     // For playlists, yt-dlp outputs NDJSON (newline-delimited JSON)
     // Parse each line separately
     const lines = output.trim().split('\n').filter(line => line.trim());
-    
+
     if (lines.length === 0) {
       throw new Error('No data returned from yt-dlp');
     }
-    
+
     const firstInfo = JSON.parse(lines[0]);
-    
+
     // Check if it's a playlist
     const isPlaylist = firstInfo._type === 'playlist' || firstInfo.extractor?.includes('playlist') || lines.length > 1;
 
@@ -55,7 +60,7 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
           return null;
         }
       }).filter(Boolean);
-      
+
       return parsePlaylistMetadata(firstInfo, allEntries);
     } else {
       return parseVideoMetadata(firstInfo);
@@ -86,7 +91,7 @@ function parseVideoMetadata(info: any): VideoMetadata {
 function parsePlaylistMetadata(info: any, entries: any[] = []): VideoMetadata {
   // If entries passed separately, use them; otherwise use info.entries
   const videoEntries = entries.length > 0 ? entries : (info.entries || []);
-  
+
   // Filter out the playlist info entry and get only video entries
   const videos: PlaylistVideo[] = videoEntries
     .filter((entry: any) => entry.id && entry.title) // Ensure it's a valid video entry

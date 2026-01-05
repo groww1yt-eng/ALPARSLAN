@@ -98,7 +98,9 @@ async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partia
     try {
         // "Me at the zoo" - short, stable metadata check
         // Using --flat-playlist and --dump-json is fast and creates minimal network load
-        await execAsync('python -m yt_dlp --dump-json --no-warnings --flat-playlist "https://www.youtube.com/watch?v=jNQXAC9IVRw"');
+        const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+        const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+        await execAsync(`python -m yt_dlp ${cookieFlag} --dump-json --no-warnings --flat-playlist "https://www.youtube.com/watch?v=jNQXAC9IVRw"`);
         return { status: 'compatible', message: 'Compatible with current YouTube behavior' };
     } catch (e: any) {
         console.error('Extractor check failed:', e.message);
