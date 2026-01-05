@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useDownloadsStore } from '@/store/useDownloadsStore';
+import { useMetadataStore } from '@/store/useMetadataStore';
+import { useUIStore } from '@/store/useUIStore';
 import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize, fetchActiveDownloads } from '@/lib/api';
 import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
@@ -23,7 +26,10 @@ import {
 } from "@/components/ui/select";
 
 export default function Dashboard() {
-  const { settings, currentMetadata, setCurrentMetadata, addJob, addNotification, updateJob, addToHistory } = useAppStore();
+  const { settings } = useSettingsStore();
+  const { currentMetadata, setCurrentMetadata } = useMetadataStore();
+  const { addJob, updateJob, addToHistory } = useDownloadsStore();
+  const { addNotification } = useUIStore();
   const { isLocked, showLockedMessage } = useSessionLock();
 
   const [url, setUrl] = useState('');
@@ -72,7 +78,7 @@ export default function Dashboard() {
         // Update local state for each active download
         Object.entries(downloads).forEach(([jobId, progress]) => {
           // Check if job exists in store
-          const existingJob = useAppStore.getState().jobs.find(j => j.id === jobId);
+          const existingJob = useDownloadsStore.getState().jobs.find(j => j.id === jobId);
 
           if (existingJob) {
             // If job is already completed/failed, don't revert state

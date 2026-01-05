@@ -1,4 +1,5 @@
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
+import { useDownloadsStore } from '@/store/useDownloadsStore';
 import { Menu, Download } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { ThemeToggle } from './ThemeToggle';
@@ -12,7 +13,8 @@ const pageTitles: Record<string, string> = {
 };
 
 export function Header() {
-  const { setSidebarOpen, jobs } = useAppStore();
+  const { setSidebarOpen } = useUIStore();
+  const { jobs } = useDownloadsStore();
   const location = useLocation();
 
   const activeJobsCount = jobs.filter(j => j.status === 'downloading' || j.status === 'queued').length;

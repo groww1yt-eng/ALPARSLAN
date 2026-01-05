@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useDownloadsStore } from '@/store/useDownloadsStore';
 import { fetchActiveDownloads } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 
 export function useSessionLock() {
-    const { jobs, updateJob, addNotification } = useAppStore();
+    const { jobs, updateJob } = useDownloadsStore();
     const { toast } = useToast();
 
     // Calculate lock state derived from store

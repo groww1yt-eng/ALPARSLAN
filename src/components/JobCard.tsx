@@ -1,5 +1,5 @@
 import type { DownloadJob } from '@/types';
-import { useAppStore } from '@/store/useAppStore';
+// useAppStore import removed
 import {
   Play,
   Pause,

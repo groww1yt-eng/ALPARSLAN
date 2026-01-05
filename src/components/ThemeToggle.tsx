@@ -1,9 +1,9 @@
 import { Sun, Moon } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 import { useEffect } from 'react';
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useAppStore();
+  const { theme, setTheme } = useUIStore();
   const isDark = theme === 'dark';
 
   useEffect(() => {

@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useDownloadsStore } from '@/store/useDownloadsStore';
 import { History as HistoryIcon, Trash2, CheckCircle, Inbox } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ScrollingTitle from '@/components/ScrollingTitle';
 
 export default function History() {
-  const { history, removeFromHistory, clearHistory } = useAppStore();
+  const { history, removeFromHistory, clearHistory } = useDownloadsStore();
 
   useEffect(() => {
     // History loads from persisted storage, no need to generate demo data

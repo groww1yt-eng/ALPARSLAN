@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useUIStore } from '@/store/useUIStore';
 import { Switch } from '@/components/ui/switch';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ import {
 
 
 export default function Settings() {
-  const { settings, updateSettings, resetSettings, addNotification } = useAppStore();
+  const { settings, updateSettings, resetSettings } = useSettingsStore();
+  const { addNotification } = useUIStore();
   const { isLocked, showLockedMessage } = useSessionLock();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [draftSettings, setDraftSettings] = useState(settings);

@@ -1,4 +1,4 @@
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 
 type NotificationType = 'success' | 'error' | 'warning' | 'info';
 
@@ -95,7 +95,7 @@ export function handleAppError(error: unknown, options: HandleAppErrorOptions = 
   }
 
   if (notify) {
-    useAppStore.getState().addNotification({
+    useUIStore.getState().addNotification({
       type: notificationType,
       title,
       message: userMessage,

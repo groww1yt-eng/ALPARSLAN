@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ const colorMap = {
 
 
 export function NotificationToast() {
-  const { notifications, removeNotification } = useAppStore();
+  const { notifications, removeNotification } = useUIStore();
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {

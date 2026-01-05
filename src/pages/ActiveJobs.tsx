@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useDownloadsStore } from '@/store/useDownloadsStore';
 import { JobCard } from '@/components/JobCard';
 import { pauseDownload, resumeDownload, cancelDownload, getDownloadProgress } from '@/lib/api';
 import { handleAppError } from '@/lib/errorHandler';
 import { Download, Inbox } from 'lucide-react';
 
 export default function ActiveJobs() {
-  const { jobs, updateJob, removeJob, addToHistory } = useAppStore();
+  const { jobs, updateJob, removeJob, addToHistory } = useDownloadsStore();
 
   // Poll for progress for all active jobs
   useEffect(() => {

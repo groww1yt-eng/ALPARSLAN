@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL } from '@/config';
-import { useAppStore } from '@/store/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useUIStore } from '@/store/useUIStore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +32,8 @@ export function NamingOptions({
   onTemplateChange,
   disabled
 }: NamingOptionsProps) {
-  const { settings, updateSettings, addNotification } = useAppStore();
+  const { settings, updateSettings } = useSettingsStore();
+  const { addNotification } = useUIStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(currentTemplate);
   const [showResetConfirm, setShowResetConfirm] = useState(false);

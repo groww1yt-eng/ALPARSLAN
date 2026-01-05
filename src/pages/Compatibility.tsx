@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL, EXPECTED_API_VERSION } from '@/config';
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import {
     Server,
     Wifi,
@@ -108,12 +109,12 @@ interface SystemInfo {
 export default function Compatibility() {
     const [info, setInfo] = useState<SystemInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const { addNotification } = useAppStore();
+    const { addNotification } = useUIStore();
 
     const fetchSystemInfo = async () => {
         setLoading(true);
         try {
-            const folder = useAppStore.getState().settings.outputFolder;
+            const folder = useSettingsStore.getState().settings.outputFolder;
             const res = await fetch(`${API_BASE_URL}/api/system-info?outputPath=${encodeURIComponent(folder)}`);
             // If HTML returned (parsing error), throw distinctive error
             const contentType = res.headers.get('content-type');

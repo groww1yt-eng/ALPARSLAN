@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAppStore } from '@/store/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -18,7 +19,8 @@ import { cn } from '@/lib/utils';
 import { useSessionLock } from '@/hooks/useSessionLock';
 
 export function Sidebar() {
-  const { sidebarOpen, setSidebarOpen, settings, resetSettings, addNotification } = useAppStore();
+  const { sidebarOpen, setSidebarOpen, addNotification } = useUIStore();
+  const { settings, resetSettings } = useSettingsStore();
   const { isLocked, showLockedMessage } = useSessionLock();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const location = useLocation();

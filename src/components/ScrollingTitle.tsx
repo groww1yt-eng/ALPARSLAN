@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 
-interface ScrollingTitleProps {
+interface ScrollingTitleProps extends React.HTMLAttributes<HTMLDivElement> {
   children?: React.ReactNode;
   className?: string;
 }
@@ -10,6 +10,7 @@ interface ScrollingTitleProps {
 export const ScrollingTitle: React.FC<ScrollingTitleProps> = ({
   children,
   className = '',
+  ...props
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -32,6 +33,7 @@ export const ScrollingTitle: React.FC<ScrollingTitleProps> = ({
   return (
     <div
       ref={containerRef}
+      {...props}
       className={`overflow-x-auto scrollbar-hide ${className}`}
       style={{
         scrollBehavior: 'smooth',
