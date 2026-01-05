@@ -2,7 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
-import type { DownloadOptions } from './download.js';
+import { type DownloadOptions, sanitizeFilename } from './download.js';
 
 export interface DownloadProgress {
   totalBytes: number;
@@ -305,6 +305,7 @@ export function cancelDownload(jobId: string): boolean {
 
   download.progress.status = 'canceled';
 
+  // Release the process first to unlock files
   if (download.process) {
     try {
       download.process.kill('SIGKILL');
@@ -312,6 +313,37 @@ export function cancelDownload(jobId: string): boolean {
     } catch (error) {
       console.error('Error killing process for cancel:', error);
     }
+  }
+
+  // Cleanup temporary files
+  try {
+    const { outputFolder, createPerChannelFolder, channel } = download.options;
+    let effectiveOutputFolder = outputFolder;
+
+    if (createPerChannelFolder && channel) {
+      const sanitizedChannel = sanitizeFilename(channel);
+      effectiveOutputFolder = path.join(outputFolder, sanitizedChannel);
+    }
+
+    if (fs.existsSync(effectiveOutputFolder)) {
+      const files = fs.readdirSync(effectiveOutputFolder);
+      // Files for this job start with the jobId + .temp
+      const tempPrefix = `${jobId}.temp`;
+
+      for (const file of files) {
+        if (file.startsWith(tempPrefix)) {
+          try {
+            const filePath = path.join(effectiveOutputFolder, file);
+            fs.unlinkSync(filePath);
+            console.log(`[Cancel Cleanup] Deleted: ${file}`);
+          } catch (delErr) {
+            console.error(`[Cancel Cleanup] Failed to delete ${file}:`, delErr);
+          }
+        }
+      }
+    }
+  } catch (cleanupErr) {
+    console.error('[Cancel Cleanup] Error during file cleanup:', cleanupErr);
   }
 
   activeDownloads.delete(jobId);

@@ -111,7 +111,7 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
 }
 
 // Sanitize filename - replace illegal characters
-function sanitizeFilename(filename: string): string {
+export function sanitizeFilename(filename: string): string {
   // Replace illegal characters
   const illegalChars: Record<string, string> = {
     ':': ' - ',
