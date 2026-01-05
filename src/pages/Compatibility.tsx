@@ -23,7 +23,8 @@ import {
     Cookie,
     Link,
     ArrowRight,
-    Shield
+    Shield,
+    Check
 } from 'lucide-react';
 
 
@@ -130,13 +131,17 @@ export default function Compatibility() {
         }
     };
 
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
     useEffect(() => {
         fetchSystemInfo();
     }, []);
 
-    const copyToClipboard = (text: string) => {
+    const copyToClipboard = (text: string, id: string) => {
         navigator.clipboard.writeText(text);
+        setCopiedId(id);
         addNotification({ type: 'success', title: 'Copied', message: 'Instructions copied to clipboard' });
+        setTimeout(() => setCopiedId(null), 2000);
     };
 
     if (loading) {
@@ -492,8 +497,16 @@ export default function Compatibility() {
                             </h3>
                             <div className="bg-background p-2 rounded border flex items-center justify-between">
                                 <code className="text-xs font-mono">yt-dlp -U</code>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard('yt-dlp -U')}>
-                                    <Copy className="w-3 h-3" />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                        "h-6 w-6 transition-all duration-300 hover:bg-transparent",
+                                        copiedId === 'update' ? "text-green-500 scale-110 hover:text-green-500" : "text-foreground/80 hover:text-primary opacity-100"
+                                    )}
+                                    onClick={() => copyToClipboard('yt-dlp -U', 'update')}
+                                >
+                                    {copiedId === 'update' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3 h-3" />}
                                 </Button>
                             </div>
                         </div>
@@ -531,8 +544,16 @@ export default function Compatibility() {
                             </p>
                             <div className="bg-background p-2 rounded border flex items-center justify-between">
                                 <code className="text-[10px] font-mono">yt-dlp --rm-cache-dir</code>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard('yt-dlp --rm-cache-dir')}>
-                                    <Copy className="w-3 h-3" />
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={cn(
+                                        "h-6 w-6 transition-all duration-300 hover:bg-transparent",
+                                        copiedId === 'cache' ? "text-green-500 scale-110 hover:text-green-500" : "text-foreground/80 hover:text-primary opacity-100"
+                                    )}
+                                    onClick={() => copyToClipboard('yt-dlp --rm-cache-dir', 'cache')}
+                                >
+                                    {copiedId === 'cache' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3 h-3" />}
                                 </Button>
                             </div>
                         </div>
