@@ -248,50 +248,62 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       setDownloadProcess(jobId, pythonProcess);
     }
 
-    let downloadOutput = '';
+    let stdoutBuffer = '';
+    let stderrBuffer = '';
 
-    pythonProcess.stdout.on('data', (data) => {
-      const lines = data.toString().split('\n');
-      for (const line of lines) {
+    const processOutput = (data: string, isError: boolean) => {
+      // Improved logic: Replace \r with \n then split by \n to handle all line endings
+      // This ensures we catch progress updates that might use \r
+      const normalizedData = data.replace(/\r/g, '\n');
+      const lines = normalizedData.split('\n');
+
+      // The last element is either an empty string (if data ended with \n)
+      // or a partial line that needs to be buffered.
+      const completeLines = lines.slice(0, -1);
+      const remaining = lines[lines.length - 1];
+
+      for (const line of completeLines) {
         if (!line.trim()) continue;
 
-        console.log(`[yt-dlp ${jobId}] ${line.trim()}`);
+        if (!isError) {
+          console.log(`[yt-dlp ${jobId}] ${line.trim()}`);
+        } else {
+          console.log(`[yt-dlp stderr ${jobId}] ${line.trim()}`);
+        }
 
-        // Detect stage changes from destination lines
-        // [download] Destination: ...f398.mp4 = video
-        // [download] Destination: ...m4a = audio
-        if (jobId && line.includes('[download]') && line.includes('Destination:')) {
-          if (line.includes('.mp4') && !line.includes('.m4a')) {
-            setStage(jobId, 'video');
-          } else if (line.includes('.m4a') || line.includes('.mp3') || line.includes('.opus')) {
-            setStage(jobId, 'audio');
+        if (jobId) {
+          // Detect stage changes
+          if (line.includes('[download]') && line.includes('Destination:')) {
+            if (line.includes('.mp4') && !line.includes('.m4a')) {
+              setStage(jobId, 'video');
+            } else if (line.includes('.m4a') || line.includes('.mp3') || line.includes('.opus')) {
+              setStage(jobId, 'audio');
+            }
           }
-        }
 
-        // Detect merge stage
-        if (jobId && line.includes('[Merger]')) {
-          setStage(jobId, 'merging');
-        }
+          // Detect merge stage
+          if (line.includes('[Merger]')) {
+            setStage(jobId, 'merging');
+            setStatus(jobId, 'converting');
+          }
 
-        // Detect conversion stage
-        if (jobId && (
-          line.includes('[ExtractAudio]') ||
-          line.includes('[FixupM4a]') ||
-          line.includes('[ffmpeg]')
-        )) {
-          setStatus(jobId, 'converting');
-        }
+          // Detect conversion/post-processing stage
+          if (
+            line.includes('[ExtractAudio]') ||
+            line.includes('[FixupM4a]') ||
+            line.includes('[ffmpeg]') ||
+            line.includes('[Metadata]') ||
+            line.includes('[EmbedSubtitle]') ||
+            line.includes('[Thumbnails]') ||
+            line.includes('Deleting original file')
+          ) {
+            setStatus(jobId, 'converting');
+          }
 
-        // Parse progress
-        // [download]  12.3% of  100.00MiB at  2.50MiB/s ETA 00:35
-        if (line.includes('[download]') && line.includes('%')) {
-          const percentMatch = line.match(/(\d+\.?\d*)%/);
-          const sizeMatch = line.match(/of\s+~?(\d+\.?\d*)([KMGTP]?i?B)/i);
-          const speedMatch = line.match(/at\s+(\d+\.?\d*)([KMGTP]?i?B)\/s/i);
-          const etaMatch = line.match(/ETA\s+(\d{2}:\d{2}(:\d{2})?)/);
-
-          if (jobId) {
-            // We rely on what yt-dlp tells us
+          // Parse progress
+          if (line.includes('[download]') && line.includes('%')) {
+            const percentMatch = line.match(/(\d+\.?\d*)%/);
+            const sizeMatch = line.match(/of\s+~?(\d+\.?\d*)([KMGTP]?i?B)/i);
 
             if (sizeMatch && percentMatch) {
               const totalStr = sizeMatch[1];
@@ -303,7 +315,6 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               else if (unit.includes('Mi') || unit.includes('MiB')) totalBytes *= 1024 ** 2;
               else if (unit.includes('Gi') || unit.includes('GiB')) totalBytes *= 1024 ** 3;
 
-              // Set stage total bytes (this is additive across stages)
               setStageTotalBytes(jobId, totalBytes);
 
               const percentage = parseFloat(percentMatch[1]);
@@ -311,19 +322,36 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
               updateProgress(jobId, downloadedBytes);
 
-              // Force 'converting' status when download hits 100% in audio mode
-              // This ensures the UI transitions even if specific logs are missed/delayed
-              if (percentage >= 100 && mode === 'audio') {
+              // Force 'converting' status when download hits 100% (or close) in audio mode
+              if (percentage >= 99.0 && mode === 'audio') {
                 setStatus(jobId, 'converting');
               }
             }
           }
+
+          // Fallback: If line explicitly says "100%", force converting for audio
+          if (mode === 'audio' && line.includes('100%') && line.includes('[download]')) {
+            setStatus(jobId, 'converting');
+          }
         }
       }
+
+      return remaining;
+    };
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdoutBuffer += data.toString();
+      stdoutBuffer = processOutput(stdoutBuffer, false);
     });
 
     pythonProcess.stderr.on('data', (data) => {
-      console.error(`[yt-dlp error] ${data.toString()}`);
+      // Some yt-dlp warnings/errors might be relevant, but usually we just log them
+      // We process buffer similarly just to be safe and clean
+      console.error(`[yt-dlp error raw] ${data}`);
+
+      // We can optionally use the same logic if we suspect progress/status leaks to stderr
+      // For now, let's keep it simple and just log, but if we wanted to be super robust we could parse stderr too
+      // However, typical yt-dlp progress is stdout.
     });
 
     pythonProcess.on('close', (code) => {
