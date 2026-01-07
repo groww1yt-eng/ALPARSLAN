@@ -10,7 +10,7 @@ export function useSessionLock() {
     // Calculate lock state derived from store
     // A session is active if ANY job is in a non-terminal state
     const isLocked = jobs.some(job =>
-        ['queued', 'downloading', 'paused', 'waiting'].includes(job.status)
+        ['queued', 'downloading', 'converting', 'paused', 'waiting'].includes(job.status)
     );
 
     // Sync with backend on mount and periodically to ensure robustness
@@ -35,7 +35,7 @@ export function useSessionLock() {
             if (!backendHasActive && isLocked) {
                 // Double check: filter our local jobs
                 const stuckJobs = jobs.filter(job =>
-                    ['queued', 'downloading', 'paused', 'waiting'].includes(job.status)
+                    ['queued', 'downloading', 'converting', 'paused', 'waiting'].includes(job.status)
                 );
 
                 // If we have stuck jobs that the backend doesn't know about, mark them failed/completed

@@ -310,6 +310,12 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               const downloadedBytes = (totalBytes * percentage) / 100;
 
               updateProgress(jobId, downloadedBytes);
+
+              // Force 'converting' status when download hits 100% in audio mode
+              // This ensures the UI transitions even if specific logs are missed/delayed
+              if (percentage >= 100 && mode === 'audio') {
+                setStatus(jobId, 'converting');
+              }
             }
           }
         }

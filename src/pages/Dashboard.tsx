@@ -883,7 +883,12 @@ export default function Dashboard() {
 
       {/* Start Download Button */}
       {currentMetadata && (
-        <StartDownloadButton onClick={handleStartDownload} />
+        <div onClickCapture={isLocked ? showLockedMessage : undefined}>
+          <StartDownloadButton
+            onClick={handleStartDownload}
+            disabled={isLocked}
+          />
+        </div>
       )}
 
 

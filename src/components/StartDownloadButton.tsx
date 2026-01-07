@@ -4,9 +4,10 @@ import { useRef } from "react"
 
 interface Props {
   onClick: () => void
+  disabled?: boolean
 }
 
-export default function StartDownloadButton({ onClick }: Props) {
+export default function StartDownloadButton({ onClick, disabled }: Props) {
   const buttonRef = useRef<HTMLButtonElement>(null)
 
   const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -34,11 +35,13 @@ export default function StartDownloadButton({ onClick }: Props) {
   return (
     <Button
       ref={buttonRef}
+      disabled={disabled}
       onClick={(e) => {
+        if (disabled) return
         createRipple(e)
         onClick()
       }}
-      className="
+      className={`
         relative overflow-hidden w-full
         py-6
         rounded-xl
@@ -47,10 +50,11 @@ export default function StartDownloadButton({ onClick }: Props) {
         shadow-md
         transition-all duration-200 ease-out
         active:scale-[0.98]
-      "
+        ${disabled ? 'opacity-50 cursor-not-allowed active:scale-100 hover:shadow-md' : ''}
+      `}
     >
       <Download className="h-5 w-5" />
-      Start Download
+      {disabled ? 'Wait for current download...' : 'Start Download'}
     </Button>
   )
 }
