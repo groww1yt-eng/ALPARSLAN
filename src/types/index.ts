@@ -2,7 +2,7 @@ export type DownloadMode = 'video' | 'audio';
 export type VideoQuality = '360p' | '480p' | '720p' | '1080p' | '1440p' | '2160p' | 'highest';
 export type AudioFormat = 'mp3' | 'm4a' | 'wav' | 'opus';
 export type PlaylistMode = 'all' | 'range' | 'manual';
-export type JobStatus = 'queued' | 'downloading' | 'paused' | 'waiting' | 'completed' | 'failed' | 'canceled';
+export type JobStatus = 'queued' | 'downloading' | 'converting' | 'paused' | 'waiting' | 'completed' | 'failed' | 'canceled';
 export type ContentType = 'single' | 'playlist';
 export type NamingTag = '<title>' | '<index>' | '<quality>' | '<channel>' | '<date>' | '<format>';
 

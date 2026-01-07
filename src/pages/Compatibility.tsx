@@ -4,7 +4,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import {
     Server,
-    Wifi,
+
     CheckCircle2,
     XCircle,
     AlertTriangle,
@@ -162,29 +162,7 @@ export default function Compatibility() {
                 <h2 className="text-lg font-medium text-black dark:text-white">Diagnostic information, system status and updates.</h2>
             </div>
 
-            {/* Premium Live Network Integrity Visualization */}
-            <div className="bg-card border rounded-2xl shadow-xl shadow-black/5 dark:shadow-black/40 overflow-hidden relative group">
-                {/* Decorative background effects */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 pointer-events-none" />
-                <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none group-hover:bg-primary/20 transition-colors duration-1000" />
 
-                <div className="relative p-3 md:p-4 flex flex-col items-center gap-4">
-                    <div className="flex flex-col items-center gap-1.5 text-center">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary mb-1">
-                            <Activity className="w-3.5 h-3.5 animate-pulse" />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">Real-time Status</span>
-                        </div>
-                        <h2 className="text-xl font-bold tracking-tight text-foreground">Live Network Integrity</h2>
-                        <p className="text-xs text-muted-foreground max-w-md">
-                            Monitoring data flow and connectivity health across the entire delivery chain.
-                        </p>
-                    </div>
-
-                    <div className="w-full max-w-4xl relative min-h-[300px] md:min-h-[120px] flex items-center justify-center">
-                        <PremiumNetworkViz path={info.networkPath} />
-                    </div>
-                </div>
-            </div>
 
 
             {/* Known Issues / Warnings */}
@@ -584,177 +562,7 @@ export default function Compatibility() {
     );
 }
 
-interface NetworkPath {
-    clientToBackend: boolean;
-    backendToInternet: boolean;
-    backendToYouTube: boolean;
-}
 
-function PremiumNetworkViz({ path }: { path: NetworkPath }) {
-    const [isMobile, setIsMobile] = useState(false);
-
-    useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Desktop: Horizontal alignment
-    const desktopNodes = [
-        { id: 'client', x: 10, y: 50, icon: <Globe className="w-5 h-5" />, label: 'You', status: true },
-        { id: 'backend', x: 36, y: 50, icon: <Server className="w-5 h-5" />, label: 'ALPARSLAN', status: path.clientToBackend },
-        { id: 'internet', x: 63, y: 50, icon: <Wifi className="w-5 h-5" />, label: 'World', status: path.backendToInternet },
-        { id: 'youtube', x: 90, y: 50, icon: <Activity className="w-5 h-5" />, label: 'YouTube', status: path.backendToYouTube },
-    ];
-
-    // Mobile: Vertical Zigzag alignment
-    const mobileNodes = [
-        { id: 'client', x: 25, y: 15, icon: <Globe className="w-5 h-5" />, label: 'You', status: true },
-        { id: 'backend', x: 75, y: 38, icon: <Server className="w-5 h-5" />, label: 'ALPARSLAN', status: path.clientToBackend },
-        { id: 'internet', x: 25, y: 62, icon: <Wifi className="w-5 h-5" />, label: 'World', status: path.backendToInternet },
-        { id: 'youtube', x: 75, y: 85, icon: <Activity className="w-5 h-5" />, label: 'YouTube', status: path.backendToYouTube },
-    ];
-
-    const nodes = isMobile ? mobileNodes : desktopNodes;
-
-    // Helper for organic curved paths
-    const getCurvedPath = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
-        if (!isMobile) {
-            const cp1x = p1.x + (p2.x - p1.x) / 2;
-            const cp1y = p1.y + 8;
-            return `M ${p1.x} ${p1.y} Q ${cp1x} ${cp1y} ${p2.x} ${p2.y}`;
-        } else {
-            const cp1x = p2.x;
-            const cp1y = p1.y + (p2.y - p1.y) / 2;
-            return `M ${p1.x} ${p1.y} Q ${cp1x} ${cp1y} ${p2.x} ${p2.y}`;
-        }
-    };
-
-    return (
-        <svg viewBox="0 0 100 100" className="w-full h-full max-h-[500px] overflow-visible" preserveAspectRatio="xMidYMid meet">
-            <defs>
-                <filter id="auraBlur" x="-50%" y="-50%" width="200%" height="200%">
-                    <feGaussianBlur stdDeviation="2.5" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-            </defs>
-
-            {/* Connection Paths */}
-            {nodes.slice(0, -1).map((node, i) => {
-                const nextNode = nodes[i + 1];
-                const isActive = nextNode.status;
-                const pathD = getCurvedPath(node, nextNode);
-                const strokeColor = isActive ? "hsl(var(--success))" : "hsl(var(--destructive))";
-
-                return (
-                    <g key={`path-${node.id}`}>
-                        <path
-                            d={pathD}
-                            stroke={strokeColor}
-                            strokeWidth="0.6"
-                            strokeOpacity="0.1"
-                            fill="none"
-                        />
-                        {isActive && (
-                            <>
-                                <path
-                                    d={pathD}
-                                    stroke={strokeColor}
-                                    strokeWidth="1.2"
-                                    fill="none"
-                                    className="animate-glowing-streak"
-                                    filter="url(#auraBlur)"
-                                    strokeOpacity="0.4"
-                                />
-                                <path
-                                    d={pathD}
-                                    stroke={strokeColor}
-                                    strokeWidth="0.6"
-                                    fill="none"
-                                    className="animate-glowing-streak-slow"
-                                    strokeOpacity="0.2"
-                                />
-                            </>
-                        )}
-                    </g>
-                );
-            })}
-
-            {/* Nodes */}
-            {nodes.map((node) => (
-                <PremiumAuraNode
-                    key={node.id}
-                    x={node.x}
-                    y={node.y}
-                    icon={node.icon}
-                    label={node.label}
-                    active={node.status}
-                />
-            ))}
-        </svg>
-    );
-}
-
-function PremiumAuraNode({ x, y, icon, label, active }: { x: number; y: number; icon: React.ReactNode; label: string; active: boolean }) {
-    const themeColor = active ? "hsl(var(--success))" : "hsl(var(--destructive))";
-
-    return (
-        <g className="group cursor-default">
-            {active && (
-                <circle
-                    cx={x}
-                    cy={y}
-                    r="8"
-                    fill={themeColor}
-                    fillOpacity="0.1"
-                    className="animate-aura-pulse"
-                />
-            )}
-
-            <circle
-                cx={x}
-                cy={y}
-                r="5.5"
-                fill="hsl(var(--card))"
-                stroke={themeColor}
-                strokeWidth="0.4"
-                strokeOpacity={active ? "0.8" : "0.3"}
-                className="transition-all duration-700"
-            />
-
-            <foreignObject x={x - 2.8} y={y - 2.8} width="5.6" height="5.6">
-                <div className={cn(
-                    "w-full h-full flex items-center justify-center transition-all duration-700",
-                    active ? "text-green-500" : "text-muted-foreground/60"
-                )}>
-                    {icon}
-                </div>
-            </foreignObject>
-
-            <circle
-                cx={x + 3.8}
-                cy={y - 3.8}
-                r="0.8"
-                fill={themeColor}
-                stroke="hsl(var(--card))"
-                strokeWidth="0.2"
-            />
-
-            <text
-                x={x}
-                y={y + 11}
-                textAnchor="middle"
-                className={cn(
-                    "text-[2.2px] font-bold uppercase tracking-[0.25em] transition-colors duration-700",
-                    active ? "fill-foreground" : "fill-muted-foreground/40"
-                )}
-            >
-                {label}
-            </text>
-        </g>
-    );
-}
 
 function formatDate(dateStr: string) {
     const d = new Date(dateStr);

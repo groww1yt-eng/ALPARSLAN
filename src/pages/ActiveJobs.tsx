@@ -10,13 +10,13 @@ export default function ActiveJobs() {
 
   // Poll for progress for all active jobs
   useEffect(() => {
-    const activeJobs = jobs.filter(j => ['downloading', 'queued', 'waiting'].includes(j.status));
+    const activeJobs = jobs.filter(j => ['downloading', 'converting', 'queued', 'waiting'].includes(j.status));
     if (activeJobs.length === 0) return;
 
     const interval = setInterval(async () => {
       try {
         for (const job of activeJobs) {
-          if (job.status !== 'downloading') continue;
+          if (job.status !== 'downloading' && job.status !== 'converting') continue;
 
           try {
             const progress = await getDownloadProgress(job.id);
@@ -91,7 +91,7 @@ export default function ActiveJobs() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const activeJobs = jobs.filter(j => ['downloading', 'paused', 'queued', 'waiting'].includes(j.status));
+  const activeJobs = jobs.filter(j => ['downloading', 'converting', 'paused', 'queued', 'waiting'].includes(j.status));
   const recentJobs = jobs.filter(j => ['completed', 'failed', 'canceled'].includes(j.status)).slice(0, 5);
 
   return (

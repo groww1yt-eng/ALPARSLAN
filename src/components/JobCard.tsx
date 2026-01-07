@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Clock,
   Wifi,
-  WifiOff
+  WifiOff,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -37,6 +38,12 @@ const statusConfig = {
     color: 'text-primary',
     bgColor: 'bg-primary/10',
     label: 'Downloading',
+  },
+  converting: {
+    icon: Loader2,
+    color: 'text-info',
+    bgColor: 'bg-info/10',
+    label: 'Converting...',
   },
   paused: {
     icon: Pause,
@@ -104,7 +111,7 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
           <p className="text-xs text-muted-foreground truncate">{job.channel}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-full', config.bgColor, config.color)}>
-              <StatusIcon className="w-3 h-3" />
+              <StatusIcon className={cn("w-3 h-3", job.status === 'converting' && "animate-spin")} />
               {config.label}
             </span>
             <span className="text-xs text-muted-foreground capitalize">
@@ -134,6 +141,14 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
               <span className="font-medium text-foreground">{typeof job.progress === 'number' ? job.progress.toFixed(1) : job.progress}%</span>
             </span>
           </div>
+        </div>
+      )}
+
+      {/* Converting State */}
+      {job.status === 'converting' && (
+        <div className="flex items-center justify-center py-4 text-sm text-muted-foreground bg-muted/30 rounded-lg animate-pulse">
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          Processing audio...
         </div>
       )}
 
@@ -177,7 +192,7 @@ export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }:
           </button>
         )}
 
-        {(job.status === 'downloading' || job.status === 'paused' || job.status === 'queued' || job.status === 'waiting') && (
+        {(job.status === 'downloading' || job.status === 'converting' || job.status === 'paused' || job.status === 'queued' || job.status === 'waiting') && (
           <button
             onClick={onCancel}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"

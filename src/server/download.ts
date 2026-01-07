@@ -9,7 +9,8 @@ import {
   setDownloadProcess,
   getDownloadProgress,
   setStageTotalBytes,
-  setStage
+  setStage,
+  setStatus
 } from './downloadManager.js';
 
 export interface DownloadResult {
@@ -270,6 +271,15 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
         // Detect merge stage
         if (jobId && line.includes('[Merger]')) {
           setStage(jobId, 'merging');
+        }
+
+        // Detect conversion stage
+        if (jobId && (
+          line.includes('[ExtractAudio]') ||
+          line.includes('[FixupM4a]') ||
+          line.includes('[ffmpeg]')
+        )) {
+          setStatus(jobId, 'converting');
         }
 
         // Parse progress

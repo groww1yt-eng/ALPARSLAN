@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, execSync, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
@@ -10,7 +10,7 @@ export interface DownloadProgress {
   percentage: number;
   speed: number; // bytes per second
   eta: number; // seconds remaining
-  status: 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled';
+  status: 'downloading' | 'converting' | 'paused' | 'completed' | 'failed' | 'canceled';
   error?: string;
   // Multi-stage tracking
   stage: 'video' | 'audio' | 'merging' | 'complete';
@@ -94,37 +94,8 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
     progressCopy.result = download.result;
   }
 
-  // For audio mode, apply format-based size estimation multipliers
-  // OPUS is the source format - other formats are converted and may have different sizes
-  if (download.options.mode === 'audio' && download.options.format) {
-    const format = download.options.format.toLowerCase();
-    let multiplier = 1.0;
-
-    switch (format) {
-      case 'mp3':
-        multiplier = 1.67; // MP3: 1.67x
-        break;
-      case 'm4a':
-        multiplier = 2.67; // M4A (AAC): 2.67x
-        break;
-      case 'wav':
-        multiplier = 12.85; // WAV: 12.85x
-        break;
-      case 'opus':
-      default:
-        multiplier = 1.0; // OPUS: 1x (native)
-        break;
-    }
-
-    // Apply multiplier to total bytes for display
-    progressCopy.totalBytes = Math.round(download.progress.totalBytes * multiplier);
-    progressCopy.audioTotalBytes = Math.round(download.progress.audioTotalBytes * multiplier);
-
-    // Recalculate percentage based on estimated total
-    if (progressCopy.totalBytes > 0) {
-      progressCopy.percentage = (download.progress.downloadedBytes / progressCopy.totalBytes) * 100;
-    }
-  }
+  // Multiplier logic removed - we now strictly follow yt-dlp reported size/progress
+  // and handle the conversion phase with a distinct 'converting' status
 
   return progressCopy;
 }
@@ -227,6 +198,13 @@ export function setStage(jobId: string, stage: 'video' | 'audio' | 'merging' | '
   }
 }
 
+export function setStatus(jobId: string, status: DownloadProgress['status']): void {
+  const download = activeDownloads.get(jobId);
+  if (!download) return;
+
+  download.progress.status = status;
+}
+
 export function completeDownload(jobId: string, finalBytes?: number, result?: {
   filePath: string;
   fileName: string;
@@ -280,7 +258,15 @@ export function pauseDownload(jobId: string): boolean {
   // The state allows us to resume later by restarting
   if (download.process) {
     try {
-      download.process.kill('SIGKILL');
+      if (process.platform === 'win32') {
+        try {
+          execSync(`taskkill /pid ${download.process.pid} /f /t`);
+        } catch (e) {
+          // Ignore if process not found
+        }
+      } else {
+        download.process.kill('SIGKILL');
+      }
       download.process = null;
     } catch (error) {
       console.error('Error killing process for pause:', error);
@@ -308,7 +294,15 @@ export function cancelDownload(jobId: string): boolean {
   // Release the process first to unlock files
   if (download.process) {
     try {
-      download.process.kill('SIGKILL');
+      if (process.platform === 'win32') {
+        try {
+          execSync(`taskkill /pid ${download.process.pid} /f /t`);
+        } catch (e) {
+          // Ignore if process not found
+        }
+      } else {
+        download.process.kill('SIGKILL');
+      }
       download.process = null;
     } catch (error) {
       console.error('Error killing process for cancel:', error);
