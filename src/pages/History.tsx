@@ -38,15 +38,17 @@ export default function History() {
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <ScrollingTitle className="font-medium" title={item.title}>
+                <ScrollingTitle className="font-medium text-sm" title={item.title}>
                   {item.title}
                 </ScrollingTitle>
                 <p className="text-xs text-muted-foreground">{item.channel}</p>
-                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                  <span>{item.fileSize}</span>
-                  <span>•</span>
-                  <span>{item.mode === 'video' ? item.quality : item.format?.toUpperCase()}</span>
-                  <span>•</span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-y-0.5 sm:gap-x-2 mt-1 text-[10px] sm:text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span>{item.fileSize}</span>
+                    <span>•</span>
+                    <span>{item.mode === 'video' ? item.quality : item.format?.toUpperCase()}</span>
+                  </div>
+                  <span className="hidden sm:inline">•</span>
                   <span>{formatDistanceToNow(new Date(item.completedAt), { addSuffix: true })}</span>
                 </div>
               </div>
