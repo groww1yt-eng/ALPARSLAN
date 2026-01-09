@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSettingsStore } from '@/store/useSettingsStore';
+import { useSettingsStore, defaultSettings } from '@/store/useSettingsStore';
 import { useUIStore } from '@/store/useUIStore';
 import { Switch } from '@/components/ui/switch';
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,13 @@ export default function Settings() {
   const [pendingPath, setPendingPath] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
 
+  // Sync draft settings when global settings change (e.g. from Sidebar reset or successful save)
+  useEffect(() => {
+    setDraftSettings(settings);
+    // If external settings change (like from reset), we assume we want to match them and clear dirty state
+    // We check if draft is different from new settings just to be safe, but generally syncing means we are 'clean'
+    setHasChanges(false);
+  }, [settings]);
 
   // Prevent closing window with unsaved changes
   useEffect(() => {
@@ -72,7 +79,7 @@ export default function Settings() {
 
   const handleSave = () => {
     updateSettings(draftSettings);
-    setHasChanges(false);
+    // setHasChanges(false); // Handled by useEffect dependency on `settings`
 
     addNotification({
       type: 'success',
@@ -83,7 +90,8 @@ export default function Settings() {
 
   const confirmResetSettings = () => {
     resetSettings();
-    setDraftSettings(settings);
+    // Explicitly set draft to defaults immediately for instant feedback
+    setDraftSettings(defaultSettings);
     setHasChanges(false);
 
     addNotification({
