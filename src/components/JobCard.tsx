@@ -91,10 +91,14 @@ const statusConfig = {
 };
 
 /**
- * Displays a single download job card with status, progress, and controls.
- *
- * @param {JobCardProps} props - Component props
- * @returns {JSX.Element} The rendered job card
+ * JobCard Component
+ * Displays a single download job processing card.
+ * 
+ * Key Features:
+ * - Dynamic Status Display: Shows distinct icons, colors, and labels for mapped statuses (Queued, Downloading, Converting, etc.)
+ * - Progress Tracking: Visualizes download percentage, ETA, speed, and size.
+ * - Interaction Controls: Provides Pause, Resume, Cancel, and Remove actions based on current job state.
+ * - Thumbnail Overlay: Shows checkmark or cross overlays for quick visual status identification.
  */
 export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }: JobCardProps) {
   const config = statusConfig[job.status];

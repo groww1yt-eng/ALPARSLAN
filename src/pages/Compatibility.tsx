@@ -4,7 +4,7 @@ import { useUIStore } from '@/store/useUIStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import {
     Server,
-
+    // ... imports
     CheckCircle2,
     XCircle,
     AlertTriangle,
@@ -28,13 +28,15 @@ import {
     Check
 } from 'lucide-react';
 
-
-
-
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { handleAppError } from '@/lib/errorHandler';
 
+/**
+ * SystemInfo Interface
+ * Defines the structure of the system diagnostic data returned by the backend.
+ * Includes version info, health checks, permissions, and network status.
+ */
 interface SystemInfo {
     versions: {
         node: string;
@@ -106,11 +108,27 @@ interface SystemInfo {
 
 
 
+/**
+ * Compatibility Page Component
+ * 
+ * Provides a comprehensive system diagnostics dashboard.
+ * 
+ * Key features:
+ * - Fetches system info from the backend (`/api/system-info`)
+ * - Displays version compatibility for Node.js, yt-dlp, FFmpeg, and the API itself
+ * - Shows health checks for internet connection, tool detection, and permissions
+ * - Provides instructions and commands for updating yt-dlp
+ * - Displays network diagnostics (DNS, IP reputation, proxy status)
+ */
 export default function Compatibility() {
     const [info, setInfo] = useState<SystemInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const { addNotification } = useUIStore();
 
+    /**
+     * Fetches diagnostic information from the server.
+     * Passes the current output folder to check for write permissions.
+     */
     const fetchSystemInfo = async () => {
         setLoading(true);
         try {

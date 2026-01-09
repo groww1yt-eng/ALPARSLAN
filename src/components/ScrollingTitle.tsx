@@ -7,6 +7,11 @@ interface ScrollingTitleProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
+/**
+ * ScrollingTitle Component
+ * Wraps text content and detects if it overflows its container.
+ * Intended to be used (conceptually) for marquees or scrolling text, though currently just sets logic for overflow checks.
+ */
 export const ScrollingTitle: React.FC<ScrollingTitleProps> = ({
   children,
   className = '',
@@ -15,6 +20,7 @@ export const ScrollingTitle: React.FC<ScrollingTitleProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
+  // Check valid overflow on mount and resize
   useEffect(() => {
     const checkOverflow = () => {
       if (containerRef.current) {

@@ -1,10 +1,13 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  // Enable dark mode via a CSS class on the body/html element
   darkMode: ["class"],
+  // Paths to all files that contain Tailwind class names
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
-  prefix: "",
+  prefix: "", // No prefix for utility classes
   theme: {
+    // Container configuration (centering and padding)
     container: {
       center: true,
       padding: "1rem",
@@ -14,6 +17,7 @@ export default {
     },
     extend: {
       // Extended theme configuration for shadcn/ui variables
+      // Maps Tailwind generic colors to CSS variables defined in globals
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
@@ -82,6 +86,7 @@ export default {
         "2xl": "1.25rem",
         "3xl": "1.5rem",
       },
+      // Custom Animation Keyframes
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -116,6 +121,7 @@ export default {
           "50%": { boxShadow: "0 0 30px hsl(var(--primary) / 0.5)" },
         },
       },
+      // Custom Animation classes
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
@@ -128,5 +134,6 @@ export default {
       },
     },
   },
+  // Plugins (e.g., tailwindcss-animate for animation utilities)
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

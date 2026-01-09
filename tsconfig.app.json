@@ -1,32 +1,39 @@
 {
   "compilerOptions": {
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "lib": [
+    // -- Environment & Module Support --
+    "allowImportingTsExtensions": true, // Allow .ts extensions in imports
+    "isolatedModules": true, // Ensure each file can be safely transpiled without relying on other imports
+    "jsx": "react-jsx", // Use React 17+ JSX transform (no need to import React)
+    "lib": [ // Library definitions to include
       "ES2020",
       "DOM",
       "DOM.Iterable"
     ],
-    "module": "ESNext",
-    "moduleDetection": "force",
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "noFallthroughCasesInSwitch": false,
-    "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "module": "ESNext", // Use latest ECMAScript module standard
+    "moduleDetection": "force", // Force module detection
+    "moduleResolution": "bundler", // Use bundler-style module resolution (Vite)
+    // -- Emission --
+    "noEmit": true, // Do not emit outputs (Vite handles bundling)
+    // -- Strictness & Checks --
+    "noFallthroughCasesInSwitch": false, // Allow fallthrough in switch statements
+    "noImplicitAny": false, // Disable implicit any check
+    "noUnusedLocals": false, // Ignore unused locals
+    "noUnusedParameters": false, // Ignore unused params
+    // -- Paths --
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
-    "skipLibCheck": true,
-    "strict": false,
-    "target": "ES2020",
-    "useDefineForClassFields": true
+    "skipLibCheck": true, // Skip checking .d.ts files
+    "strict": false, // Disable strict mode (for flexibility)
+    "target": "ES2020", // Target ECMAScript version
+    "useDefineForClassFields": true // Use [[Define]] semantics for class fields
   },
+  // Files to include in the compilation context
   "include": [
-    "src"
-, "tsconfig.node.json", "vite.config.ts"  ]
+    "src",
+    "tsconfig.node.json",
+    "vite.config.ts"
+  ]
 }

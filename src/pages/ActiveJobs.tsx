@@ -5,17 +5,31 @@ import { pauseDownload, resumeDownload, cancelDownload, getDownloadProgress } fr
 import { handleAppError } from '@/lib/errorHandler';
 import { Download, Inbox } from 'lucide-react';
 
+/**
+ * ActiveJobs Component
+ * 
+ * Displays and manages currently active download jobs.
+ * 
+ * Key features:
+ * - Polls for progress updates provided by the backend for all active jobs
+ * - Updates the Zustand store with real-time progress, speed, and ETA
+ * - Handles job lifecycle actions: Pause, Resume, Cancel
+ * - Moves completed jobs to history and handles failure states
+ */
 export default function ActiveJobs() {
   const { jobs, updateJob, removeJob, addToHistory } = useDownloadsStore();
 
   // Poll for progress for all active jobs
   useEffect(() => {
+    // Filter jobs that actually need polling (exclude completed/failed/canceled)
     const activeJobs = jobs.filter(j => ['downloading', 'converting', 'queued', 'waiting'].includes(j.status));
     if (activeJobs.length === 0) return;
 
+    // Polling interval (1 second)
     const interval = setInterval(async () => {
       try {
         for (const job of activeJobs) {
+          // Only poll for states where backend work is happening
           if (job.status !== 'downloading' && job.status !== 'converting') continue;
 
           try {
@@ -34,6 +48,7 @@ export default function ActiveJobs() {
                 completedAt: new Date(),
               });
 
+              // Add to history persistence
               addToHistory({
                 id: crypto.randomUUID(),
                 title: job.title,
@@ -59,19 +74,20 @@ export default function ActiveJobs() {
             }
 
             // Handle Active Progress
-            // Convert bytes to MB
+            // Convert bytes to MB for UI display
             const totalMB = (progress.totalBytes / (1024 * 1024));
             const downloadedMB = (progress.downloadedBytes / (1024 * 1024));
             const speedMBps = (progress.speed / (1024 * 1024));
 
             updateJob(job.id, {
               progress: Math.min(100, Math.round(progress.percentage || 0)),
-              downloadedSize: `${downloadedMB.toFixed(1)} MB`, // Only downloaded, not "X / Y"
+              downloadedSize: `${downloadedMB.toFixed(1)} MB`, // Only downloaded amount
               speed: `${speedMBps.toFixed(1)} MB/s`,
               eta: formatEta(progress.eta),
               fileSize: `${totalMB.toFixed(1)} MB`
             });
           } catch (error) {
+            // Silently handle polling errors to avoid spamming the user
             handleAppError(error, { title: 'Error', defaultMessage: 'Error polling progress', notify: false, logLabel: 'Error polling progress:' });
           }
         }
@@ -83,7 +99,7 @@ export default function ActiveJobs() {
     return () => clearInterval(interval);
   }, [jobs, updateJob, addToHistory]);
 
-  // Helper for ETA formatting
+  // Helper for ETA formatting (Seconds -> MM:SS)
   const formatEta = (seconds: number) => {
     if (!seconds || seconds === Infinity) return '--:--';
     const mins = Math.floor(seconds / 60);
@@ -91,6 +107,7 @@ export default function ActiveJobs() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Filter lists for display active vs recent
   const activeJobs = jobs.filter(j => ['downloading', 'converting', 'paused', 'queued', 'waiting'].includes(j.status));
   const recentJobs = jobs.filter(j => ['completed', 'failed', 'canceled'].includes(j.status)).slice(0, 5);
 

@@ -31,11 +31,16 @@ interface NamingOptionsProps {
 }
 
 /**
- * Component for configuring and validating custom filename naming templates.
- * Allows users to edit templates with valid variables and saves them to the backend.
- *
- * @param {NamingOptionsProps} props - Component props
- * @returns {JSX.Element} The rendered component
+ * NamingOptions Component
+ * 
+ * Provides an interface for configuring custom file naming templates.
+ * 
+ * Features:
+ * - Template Editor: Text input for modifying the template string.
+ * - Frontend Validation: Real-time validation of structure and tags using helper functions.
+ * - Live Tag Interactions: Clickable badges to insert tags easily at the cursor position.
+ * - Persistence: Sames modified templates to the backend (`api/naming-templates`).
+ * - Security: Sanitizes input to prevent filesystem errors.
  */
 export function NamingOptions({
   contentType,

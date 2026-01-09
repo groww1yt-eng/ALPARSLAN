@@ -4,6 +4,16 @@ import { History as HistoryIcon, Trash2, CheckCircle, Inbox } from 'lucide-react
 import { formatDistanceToNow } from 'date-fns';
 import ScrollingTitle from '@/components/ScrollingTitle';
 
+/**
+ * History Page Component
+ * 
+ * Displays the persistent download history.
+ * 
+ * Key features:
+ * - Loads history from the persisted `download-store`
+ * - Displays completed downloads with metadata (thumbnail, size, quality)
+ * - Allows clearing individual items or the entire history
+ */
 export default function History() {
   const { history, removeFromHistory, clearHistory } = useDownloadsStore();
 

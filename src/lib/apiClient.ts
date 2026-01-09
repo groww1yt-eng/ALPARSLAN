@@ -4,8 +4,10 @@ export interface ApiRequestOptions extends RequestInit {
     fallbacks?: string[];
 }
 
+// Global flag to prevent spamming the version mismatch alert
 let versionMismatchNotified = false;
 
+// Centralized fetch wrapper to handle base URLs, version checks, and fallbacks
 export async function makeApiCall(endpoint: string, options: ApiRequestOptions = {}): Promise<Response> {
     const { fallbacks = [], ...fetchOptions } = options;
     const urls = [`${API_BASE_URL}${endpoint}`, ...fallbacks.map(f => `${API_BASE_URL}${f}`)];
@@ -16,17 +18,18 @@ export async function makeApiCall(endpoint: string, options: ApiRequestOptions =
         try {
             const response = await fetch(url, fetchOptions);
 
-            // Check version header
+            // Check version header to ensure frontend/backend compatibility
             const backendVersion = response.headers.get('X-API-Version');
             if (backendVersion && backendVersion !== EXPECTED_API_VERSION && !versionMismatchNotified) {
                 versionMismatchNotified = true;
                 console.warn(`[API] Version Mismatch! Expected: ${EXPECTED_API_VERSION}, Backend: ${backendVersion}`);
-                // Trigger global mismatch event
+                // Trigger global mismatch event for App.tsx to handle (e.g., show overlay)
                 window.dispatchEvent(new CustomEvent('api-version-mismatch', {
                     detail: { expected: EXPECTED_API_VERSION, actual: backendVersion }
                 }));
             }
 
+            // Retry fallback if status is not OK and we have other URLs
             if (!response.ok && urls.length > 1) {
                 console.warn(`[API] Request to ${url} failed with status ${response.status}. Trying fallback...`);
                 continue;

@@ -22,6 +22,7 @@ const ALLOWED_HOSTS = [
   'youtube-nocookie.com'
 ];
 
+// Validate and sanitize URL (Frontend version)
 export function validateAndSanitizeUrl(inputUrl: string): string {
   try {
     const url = new URL(inputUrl);
@@ -55,6 +56,7 @@ export function validateAndSanitizeUrl(inputUrl: string): string {
   }
 }
 
+// Boolean validation helper
 export function isValidYouTubeUrl(url: string): boolean {
   try {
     validateAndSanitizeUrl(url);

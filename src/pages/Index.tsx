@@ -1,3 +1,5 @@
+// Index Page
+// A basic fallback/welcome page.
 // Update this page (the content is just a fallback if you fail to update the page)
 
 const Index = () => {

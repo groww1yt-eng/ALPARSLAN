@@ -18,6 +18,17 @@ import {
 import { cn } from '@/lib/utils';
 import { useSessionLock } from '@/hooks/useSessionLock';
 
+/**
+ * Sidebar Component
+ * 
+ * Main navigation drawer for the application.
+ * 
+ * Features:
+ * - Responsive Design: Collapsible on mobile, fixed on desktop.
+ * - Active State: Highlights current route using `react-router-dom` NavLink logic.
+ * - Quick Actions: Reset Settings, Theme Toggle (in Header, but related navigation context).
+ * - Status Overview: Displays current download default settings (Mode, Quality/Format).
+ */
 export function Sidebar() {
   const { sidebarOpen, setSidebarOpen, addNotification } = useUIStore();
   const { settings, resetSettings } = useSettingsStore();

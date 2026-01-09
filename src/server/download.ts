@@ -13,6 +13,7 @@ import {
   setStatus
 } from './downloadManager.js';
 
+// Interface for the final result of a download operation
 export interface DownloadResult {
   success: boolean;
   filePath: string;
@@ -20,24 +21,26 @@ export interface DownloadResult {
   fileSize: string; // in MB
 }
 
+// Configuration options for a download job
 export interface DownloadOptions {
   url: string;
   videoId: string;
-  jobId?: string;
+  jobId?: string; // Unique ID for tracking
   outputFolder: string;
   mode: 'video' | 'audio';
-  quality?: string;
-  format?: string;
-  fileSize?: number;
+  quality?: string; // e.g., '1080p', 'highest'
+  format?: string;  // e.g., 'mp3', 'mp4'
+  fileSize?: number; // Estimated total size
   resolvedFilename?: string; // Final filename without extension (from naming resolver)
-  onProgress?: (progress: number) => void;
+  onProgress?: (progress: number) => void; // Optional callback
   downloadSubtitles?: boolean;
   subtitleLanguage?: 'auto' | 'en';
   createPerChannelFolder?: boolean;
   channel?: string;
 }
 
-// Get total file size using yt-dlp
+// Helper: Get total file size using yt-dlp simulation
+// This runs yt-dlp with --skip-download and -j (JSON) to get metadata
 export async function getFileSize(url: string, mode: 'video' | 'audio', quality: string = '1080p', playlistItems?: string): Promise<number> {
   try {
     let ytdlpArgs: string[] = ['-j'];
@@ -47,9 +50,12 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     }
 
     if (mode === 'audio') {
+      // Audio extraction mode
       ytdlpArgs.push('-x');
       ytdlpArgs.push('--audio-format=mp3');
     } else {
+      // Video mode: Select formats based on quality preference
+      // Format strings mimic yt-dlp syntax for best video+audio combination
       const qualityMap: Record<string, string> = {
         '2160p': 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
         '1440p': 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
@@ -61,25 +67,27 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
       };
       const formatStr = qualityMap[quality] || qualityMap['1080p'];
       ytdlpArgs.push('-f', formatStr);
-      // Add remux in size calculation too to match actual download
+      // Add remux in size calculation too to match actual download process behavior
       ytdlpArgs.push('--remux-video=mp4');
     }
 
-    ytdlpArgs.push('--skip-download');
+    ytdlpArgs.push('--skip-download'); // Do not actually download
     ytdlpArgs.push('--ignore-errors'); // Don't fail entire batch if one is private
-    ytdlpArgs.push('--no-warnings');   // Reduce noise
+    ytdlpArgs.push('--no-warnings');   // Reduce console noise
     ytdlpArgs.push(url);
 
-    // Check for cookies file
+    // Check for cookies file to support age-restricted content
     const cookiePath = 'cookies.txt';
     if (fs.existsSync(cookiePath)) {
       ytdlpArgs.push('--cookies', cookiePath);
     }
 
+    // execute synchronously
     const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
 
     let output = '';
     try {
+      // Increase maxBuffer to handle large JSON outputs for playlists
       output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
     } catch (error: any) {
       // If yt-dlp exits with error (e.g. private video), it might still have output valid JSON for others
@@ -93,7 +101,7 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     }
 
     try {
-      // Split by newline and parse each line (for playlists)
+      // Split by newline and parse each line (for playlists which output NDJSON)
       const lines = output.trim().split('\n');
       let total = 0;
 
@@ -101,6 +109,7 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
         if (!line.trim()) continue;
         try {
           const info = JSON.parse(line);
+          // Sum up filesize (exact) or filesize_approx (estimate)
           total += info.filesize || info.filesize_approx || 0;
         } catch (e) {
           // Ignore parse errors for non-JSON lines (warnings etc)
@@ -117,9 +126,9 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
   }
 }
 
-// Sanitize filename - replace illegal characters
+// Sanitize filename - replace illegal filesystem characters
 export function sanitizeFilename(filename: string): string {
-  // Replace illegal characters
+  // Map commonly illegal characters to safe replacements
   const illegalChars: Record<string, string> = {
     ':': ' - ',
     '/': '_',
@@ -137,13 +146,13 @@ export function sanitizeFilename(filename: string): string {
     sanitized = sanitized.replace(new RegExp(`[${illegal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`, 'g'), replacement);
   }
 
-  // Remove trailing dots and spaces
+  // Remove trailing dots and spaces which can cause issues on Windows
   sanitized = sanitized.replace(/[\s.]+$/, '');
 
   return sanitized;
 }
 
-// Handle duplicate filenames - ONLY append if file already exists
+// Handle duplicate filenames - Append (N) if file already exists
 function getUniqueFilename(filePath: string): string {
   const dir = path.dirname(filePath);
   const ext = path.extname(filePath);
@@ -154,7 +163,7 @@ function getUniqueFilename(filePath: string): string {
     return filePath;
   }
 
-  // File exists, so start appending numbers
+  // File exists, so start appending numbers (2), (3)...
   let counter = 2;
   while (true) {
     const newName = `${basename} (${counter})${ext}`;
@@ -166,9 +175,11 @@ function getUniqueFilename(filePath: string): string {
   }
 }
 
+// Main download function - spawns yt-dlp process
 export async function downloadVideo(options: DownloadOptions): Promise<DownloadResult> {
   const { url, videoId, jobId, outputFolder, mode, quality = '1080p', format = 'mp3', fileSize = 0, resolvedFilename, downloadSubtitles, subtitleLanguage, createPerChannelFolder, channel } = options;
 
+  // Handle per-channel subdirectory logic
   let effectiveOutputFolder = outputFolder;
   if (createPerChannelFolder && channel) {
     const sanitizedChannel = sanitizeFilename(channel);
@@ -180,7 +191,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     fs.mkdirSync(effectiveOutputFolder, { recursive: true });
   }
 
-  // Register with manager immediately
+  // Register with manager immediately to track state
   if (jobId) {
     registerDownload(jobId, options);
   }
@@ -191,9 +202,9 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     if (mode === 'audio') {
       ytdlpArgs.push('-x'); // Extract audio
       ytdlpArgs.push(`--audio-format=${format}`);
-      ytdlpArgs.push('--audio-quality=0'); // Best quality
+      ytdlpArgs.push('--audio-quality=0'); // Best quality (VBR)
     } else {
-      // Video download with quality - ONLY MP4 format
+      // Video download configuration
       const qualityMap: Record<string, string> = {
         '2160p': 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
         '1440p': 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
@@ -205,33 +216,31 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       };
       const formatStr = qualityMap[quality] || qualityMap['1080p'];
       ytdlpArgs.push('-f', formatStr);
-      ytdlpArgs.push('--remux-video=mp4');
+      ytdlpArgs.push('--remux-video=mp4'); // Ensure output container is MP4
     }
 
-    // Subtitles
+    // Subtitles configuration
     if (mode === 'video' && downloadSubtitles) {
-      ytdlpArgs.push('--embed-subs');
-      // --ignore-errors is already handled globally if needed, by passing specific flags to yt-dlp
-      // or relying on default behavior. We want to ensure it doesn't fail on missing subs.
+      ytdlpArgs.push('--embed-subs'); // Embed subs in video file
 
       if (subtitleLanguage === 'en') {
-        ytdlpArgs.push('--sub-langs', 'en.*');
+        ytdlpArgs.push('--sub-langs', 'en.*'); // Only English
       }
-      // For 'auto', we don't add --sub-langs, or we let yt-dlp decide (usually gets all/auto).
+      // if 'auto', we leave it to default (all available)
     }
 
     // Use temp filename during download, will rename to resolved filename after completion
-    // This ensures we don't have partial files with final names
+    // This ensures we don't have partial files with final names if interrupted
     const tempBasename = jobId ? `${jobId}.temp` : `${crypto.randomUUID()}.temp`;
     const outputTemplate = path.join(effectiveOutputFolder, `${tempBasename}.%(ext)s`);
     ytdlpArgs.push('-o', outputTemplate);
     ytdlpArgs.push('--no-warnings');
-    ytdlpArgs.push('--newline'); // Important for parsing progress
+    ytdlpArgs.push('--newline'); // Important: Output progress on new lines for parsing
 
-    // URL
+    // URL to download
     ytdlpArgs.push(url);
 
-    // Check for cookies file
+    // Cookies support
     const cookiePath = 'cookies.txt';
     if (fs.existsSync(cookiePath)) {
       ytdlpArgs.push('--cookies', cookiePath);
@@ -240,25 +249,26 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     console.log(`Starting download (spawn): ${url}`);
     console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);
 
-    // Spawn process
+    // Spawn process (async execution)
     const pythonProcess = spawn('python', ['-m', 'yt_dlp', ...ytdlpArgs]);
 
     if (jobId) {
-      // Store process reference
+      // Store process reference in manager for Pause/Cancel capabilities
       setDownloadProcess(jobId, pythonProcess);
     }
 
     let stdoutBuffer = '';
     let stderrBuffer = '';
 
+    // Function to parse stdout lines and update progress
     const processOutput = (data: string, isError: boolean) => {
       // Improved logic: Replace \r with \n then split by \n to handle all line endings
-      // This ensures we catch progress updates that might use \r
+      // This ensures we catch progress updates that might use \r carriage returns
       const normalizedData = data.replace(/\r/g, '\n');
       const lines = normalizedData.split('\n');
 
       // The last element is either an empty string (if data ended with \n)
-      // or a partial line that needs to be buffered.
+      // or a partial line that needs to be buffered until next chunk
       const completeLines = lines.slice(0, -1);
       const remaining = lines[lines.length - 1];
 
@@ -272,7 +282,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
         }
 
         if (jobId) {
-          // Detect stage changes
+          // Detect stage changes (Video -> Audio -> Merging)
           if (line.includes('[download]') && line.includes('Destination:')) {
             if (line.includes('.mp4') && !line.includes('.m4a')) {
               setStage(jobId, 'video');
@@ -281,13 +291,13 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             }
           }
 
-          // Detect merge stage
+          // Detect merge stage (ffmpeg)
           if (line.includes('[Merger]')) {
             setStage(jobId, 'merging');
             setStatus(jobId, 'converting');
           }
 
-          // Detect conversion/post-processing stage
+          // Detect conversion/post-processing stage (ffmpeg, metadata, subs)
           if (
             line.includes('[ExtractAudio]') ||
             line.includes('[FixupM4a]') ||
@@ -300,7 +310,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             setStatus(jobId, 'converting');
           }
 
-          // Parse progress
+          // Parse progress percentage and size
           if (line.includes('[download]') && line.includes('%')) {
             const percentMatch = line.match(/(\d+\.?\d*)%/);
             const sizeMatch = line.match(/of\s+~?(\d+\.?\d*)([KMGTP]?i?B)/i);
@@ -310,19 +320,21 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               const unit = sizeMatch[2];
               let totalBytes = parseFloat(totalStr);
 
-              // Simple unit check
+              // Convert units to bytes
               if (unit.includes('Ki') || unit.includes('KiB')) totalBytes *= 1024;
               else if (unit.includes('Mi') || unit.includes('MiB')) totalBytes *= 1024 ** 2;
               else if (unit.includes('Gi') || unit.includes('GiB')) totalBytes *= 1024 ** 3;
 
+              // Update total bytes for current stage
               setStageTotalBytes(jobId, totalBytes);
 
               const percentage = parseFloat(percentMatch[1]);
               const downloadedBytes = (totalBytes * percentage) / 100;
 
+              // Update global store
               updateProgress(jobId, downloadedBytes);
 
-              // Force 'converting' status when download hits 100% (or close) in audio mode
+              // Force 'converting' status when download hits ~100% in audio mode
               if (percentage >= 99.0 && mode === 'audio') {
                 setStatus(jobId, 'converting');
               }
@@ -339,24 +351,22 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       return remaining;
     };
 
+    // Attach stdout text handler
     pythonProcess.stdout.on('data', (data) => {
       stdoutBuffer += data.toString();
       stdoutBuffer = processOutput(stdoutBuffer, false);
     });
 
+    // Attach stderr handler (for logs)
     pythonProcess.stderr.on('data', (data) => {
       // Some yt-dlp warnings/errors might be relevant, but usually we just log them
-      // We process buffer similarly just to be safe and clean
       console.error(`[yt-dlp error raw] ${data}`);
-
-      // We can optionally use the same logic if we suspect progress/status leaks to stderr
-      // For now, let's keep it simple and just log, but if we wanted to be super robust we could parse stderr too
-      // However, typical yt-dlp progress is stdout.
     });
 
+    // Process close handler
     pythonProcess.on('close', (code) => {
       // CRITICAL: Check pause/cancel status FIRST before any other processing
-      // This must happen before checking exit code because SIGKILL can cause code=0
+      // This must happen before checking exit code because SIGKILL can cause code=0 or code=null
       if (jobId) {
         const progress = getDownloadProgress(jobId);
         if (progress && (progress.status === 'paused' || progress.status === 'canceled')) {
@@ -367,10 +377,10 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
       }
 
       if (code === 0) {
-        // Success - but only if not paused/canceled (already checked above)
+        // Success execution
         console.log('✅ Download process completed');
 
-        // Find the temp file we just downloaded
+        // Logic to Find and Rename the downloaded temp file
         try {
           const files = fs.readdirSync(effectiveOutputFolder);
           let downloadedFile: string | null = null;
@@ -387,7 +397,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             }
           }
 
-          // Fallback: find most recently modified file (for compatibility)
+          // Fallback: find most recently modified file (legacy safety)
           if (!downloadedFile) {
             let latestTime = 0;
             for (const file of files) {
@@ -406,17 +416,17 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
             const downloadedExt = path.extname(downloadedFile);
             let finalPath = downloadedFile;
 
-            // If we have a resolved filename, rename to it
+            // Rename logic
             if (resolvedFilename) {
               const targetName = `${resolvedFilename}${downloadedExt}`;
               const targetPath = path.join(effectiveOutputFolder, targetName);
-              // Use getUniqueFilename to handle duplicates
+              // Use getUniqueFilename to handle if target already exists
               finalPath = getUniqueFilename(targetPath);
 
               console.log(`Renaming: ${path.basename(downloadedFile)} -> ${path.basename(finalPath)}`);
               fs.renameSync(downloadedFile, finalPath);
             } else {
-              // Fallback: sanitize the original name (legacy behavior)
+              // Fallback: sanitize original if no resolved name provided
               const originalName = path.basename(downloadedFile);
               const sanitized = sanitizeFilename(originalName);
               if (sanitized !== originalName) {
@@ -446,7 +456,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
               fileSize: `${(stats.size / (1024 * 1024)).toFixed(2)} MB`
             });
           } else {
-            // No complete file found - this might mean download was interrupted
+            // No complete file found - this might mean download was interrupted technically
             if (jobId) failDownload(jobId, 'No complete file found (only .part files exist)');
             reject(new Error('No file downloaded'));
           }
@@ -456,6 +466,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
           reject(err);
         }
       } else {
+        // Non-zero exit code
         const msg = 'Process exited with code ' + code;
         if (jobId) {
           // Check if it was manually cancelled/paused
@@ -479,6 +490,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
   });
 }
 
+// Utility to list downloaded files in output folder to check results
 export function getDownloadedFiles(outputFolder: string, videoTitle: string): string[] {
   try {
     if (!fs.existsSync(outputFolder)) {
@@ -486,7 +498,6 @@ export function getDownloadedFiles(outputFolder: string, videoTitle: string): st
     }
 
     const files = fs.readdirSync(outputFolder);
-    // Filter files that match the video title (roughly)
     return files.filter(file => {
       const filePath = path.join(outputFolder, file);
       return fs.statSync(filePath).isFile();

@@ -13,6 +13,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+// Internal modules for core functionality
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
 import { getDownloadProgress, pauseDownload, resumeDownload, cancelDownload, getActiveDownloads } from './src/server/downloadManager.js';
@@ -21,31 +22,36 @@ import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/
 import type { ContentType, DownloadMode } from './src/server/namingResolver.js';
 import { validateAndSanitizeUrl } from './src/server/validation.js';
 import { API_VERSION } from './src/server/config.js';
-
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
 import { getSystemInfo } from './src/server/system.js';
 
-// ... other imports ...
+// Setup directory paths (ES modules work-around)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+
+// Set server port from environment or default to 3001
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// -- Middleware --
+app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(express.json()); // Parse incoming JSON request bodies
 
-// API Version Middleware
+// -- Global Middleware --
+// Attach API version to every response header
 app.use((_req, res, next) => {
   res.setHeader('X-API-Version', API_VERSION);
   next();
 });
 
 
-// Serve static frontend files (from dist folder)
+// -- Static Files (Production) --
+// Serve the built React frontend files from the 'dist' folder
 const distPath = path.resolve(process.cwd(), 'dist');
 app.use(express.static(distPath));
 
-// Health check
+// -- API Routes --
+
+// Health Check Endpoint
+// Used by frontend to verify backend connectivity
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -54,7 +60,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// Alias for convenience
+// Health check alias (root level)
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -64,7 +70,8 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 
-// Naming templates (backend persisted)
+// GET /api/naming-templates
+// Retrieve current file naming templates from persistence
 app.get('/api/naming-templates', (_req: Request, res: Response) => {
   try {
     res.json({ namingTemplates: getNamingTemplates() });
@@ -74,9 +81,12 @@ app.get('/api/naming-templates', (_req: Request, res: Response) => {
   }
 });
 
+// PUT /api/naming-templates
+// Update file naming templates
 app.put('/api/naming-templates', (req: Request, res: Response) => {
   try {
     const { namingTemplates } = req.body;
+    // Validate request body
     if (!namingTemplates) {
       res.status(400).json({ error: 'namingTemplates is required' });
       return;
@@ -90,7 +100,8 @@ app.put('/api/naming-templates', (req: Request, res: Response) => {
   }
 });
 
-// Fetch metadata for a video or playlist
+// POST /api/metadata
+// Fetch video title, thumbnail, and other info from YouTube URL
 app.post('/api/metadata', async (req: Request, res: Response) => {
   try {
     const { url } = req.body;
@@ -101,6 +112,7 @@ app.post('/api/metadata', async (req: Request, res: Response) => {
     }
 
     try {
+      // Validate and sanitize URL before processing
       const sanitizedUrl = validateAndSanitizeUrl(url);
       const metadata = await getVideoMetadata(sanitizedUrl); // Use sanitized URL
       res.json(metadata);
@@ -115,7 +127,8 @@ app.post('/api/metadata', async (req: Request, res: Response) => {
   }
 });
 
-// Get estimated file size (for Dashboard display)
+// POST /api/filesize
+// Estimate file size before downloading (uses yt-dlp simulation)
 app.post('/api/filesize', async (req: Request, res: Response) => {
   try {
     const { url, mode, quality, format, playlistItems } = req.body;
@@ -129,13 +142,14 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
     try {
       const sanitizedUrl = validateAndSanitizeUrl(url);
       // Get raw file size from yt-dlp (possibly with range/selection)
-      fileSize = await getFileSize(sanitizedUrl, mode, quality, playlistItems); // Use sanitized URL
+      fileSize = await getFileSize(sanitizedUrl, mode, quality, playlistItems);
     } catch (e: any) {
       res.status(400).json({ error: e.message || 'Invalid URL' });
       return;
     }
 
-    // For audio mode, apply format-based multipliers (same as during download)
+    // For audio mode, apply format-based multipliers (estimated overhead)
+    // yt-dlp doesn't always report accurate audio size after conversion
     if (mode === 'audio' && format) {
       const formatLower = format.toLowerCase();
       let multiplier = 1.0;
@@ -167,12 +181,13 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
   }
 });
 
-// Download a video or audio
+// POST /api/download
+// Start a new download job
 app.post('/api/download', async (req: Request, res: Response) => {
   try {
     const { url, videoId, jobId, outputFolder, mode, quality, format, title, channel, index, contentType, downloadSubtitles, subtitleLanguage, createPerChannelFolder } = req.body;
 
-    // Debug: Log incoming naming metadata
+    // Debug logging
     console.log('[DEBUG] Download request received:');
     console.log(`[DEBUG]   title: "${title}"`);
     console.log(`[DEBUG]   channel: "${channel}"`);
@@ -181,11 +196,13 @@ app.post('/api/download', async (req: Request, res: Response) => {
     console.log(`[DEBUG]   mode: "${mode}", quality: "${quality}"`);
     console.log(`[DEBUG]   createPerChannelFolder: ${createPerChannelFolder}`);
 
+    // Validate required parameters
     if (!url || !videoId || !jobId || !outputFolder || !mode) {
       res.status(400).json({ error: 'Missing required parameters: url, videoId, jobId, outputFolder, mode' });
       return;
     }
 
+    // URL Validation
     let sanitizedUrl = url;
     try {
       sanitizedUrl = validateAndSanitizeUrl(url);
@@ -194,6 +211,7 @@ app.post('/api/download', async (req: Request, res: Response) => {
       return;
     }
 
+    // -- Naming Logic --
     // Get naming template from settings
     const templates = getNamingTemplates();
     const actualContentType: ContentType = contentType || 'single';
@@ -211,7 +229,7 @@ app.post('/api/download', async (req: Request, res: Response) => {
       return;
     }
 
-    // Resolve the filename using the template
+    // Resolve the filename using the template variables
     const resolvedFilename = resolveFilename({
       template,
       title: title || 'Unknown Video',
@@ -227,12 +245,12 @@ app.post('/api/download', async (req: Request, res: Response) => {
     console.log(`[NAMING] Template: "${template}"`);
     console.log(`[NAMING] Resolved: "${resolvedFilename}"`);
 
-    // Get file size first (for progress tracking)
+    // Get file size first (for progress tracking initialization)
     const fileSize = await getFileSize(url, mode, quality);
 
-    // Pass fileSize and resolvedFilename to downloadVideo
-    // Start download in background (fire and forget)
-    // The frontend will poll /api/download/progress/:jobId for status
+    // -- Start Download --
+    // Run download in background (fire and forget pattern)
+    // The frontend will poll /api/download/progress/:jobId for status updates
     downloadVideo({
       url,
       videoId,
@@ -246,13 +264,13 @@ app.post('/api/download', async (req: Request, res: Response) => {
       downloadSubtitles,
       subtitleLanguage,
       createPerChannelFolder,
-      channel: channel || 'Unknown Channel',
+      channel: channel || 'Unknown Channel', // Ensure channel is passed for folder creation
     }).catch(err => {
       console.error(`Background download failed for ${jobId}:`, err);
-      // Error is already handled/logged in downloadVideo via failDownload
+      // Note: Error is already handled/logged in downloadVideo via failDownload
     });
 
-    // Return success immediately
+    // Return success immediately with Job ID
     res.json({
       success: true,
       jobId,
@@ -273,7 +291,8 @@ app.post('/api/download', async (req: Request, res: Response) => {
   }
 });
 
-// Get all active downloads
+// GET /api/downloads/active
+// List current active downloads (used for restoring state on refresh)
 app.get('/api/downloads/active', (_req: Request, res: Response) => {
   try {
     const downloads = getActiveDownloads();
@@ -284,7 +303,8 @@ app.get('/api/downloads/active', (_req: Request, res: Response) => {
   }
 });
 
-// Get download progress
+// GET /api/download/progress/:jobId
+// Poll specific download progress
 app.get('/api/download/progress/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
   const progress = getDownloadProgress(jobId);
@@ -297,7 +317,8 @@ app.get('/api/download/progress/:jobId', (req: Request, res: Response) => {
   res.json(progress);
 });
 
-// Pause download
+// POST /api/download/pause/:jobId
+// Pause a running download
 app.post('/api/download/pause/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
   const success = pauseDownload(jobId);
@@ -310,7 +331,8 @@ app.post('/api/download/pause/:jobId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-// Resume download
+// POST /api/download/resume/:jobId
+// Resume a paused download
 app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
   const { jobId } = req.params;
   const options = resumeDownload(jobId);
@@ -320,8 +342,7 @@ app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
     return;
   }
 
-  // Restart the download process in background (fire and forget for this request)
-  // The frontend will poll for progress
+  // Restart the download process in background using stored options
   void downloadVideo(options).catch((error) => {
     console.error(`Resumed download failed [${jobId}]:`, error);
   });
@@ -329,7 +350,8 @@ app.post('/api/download/resume/:jobId', async (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-// Cancel download
+// POST /api/download/cancel/:jobId
+// Cancel and cleanup a download
 app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   const { jobId } = req.params;
   const success = cancelDownload(jobId);
@@ -342,7 +364,8 @@ app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-// System Info
+// GET /api/system-info
+// Fetch system specs (CPU, RAM, Disk)
 app.get('/api/system-info', async (req: Request, res: Response) => {
   try {
     const outputPath = req.query.outputPath as string | undefined;
@@ -355,24 +378,26 @@ app.get('/api/system-info', async (req: Request, res: Response) => {
 });
 
 
-// SPA Fallback - serve index.html for all non-API routes
+// SPA Fallback
+// Return index.html for any unknown route so React Router can handle it on frontend
 app.get('*', (_req: Request, res: Response) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
 
-
+// -- Server Startup --
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Server running on http://localhost:${PORT}`);
   console.log(`✓ Serving frontend from: ${distPath}`);
   console.log(`✓ Ready to accept connections...`);
 });
 
-// Keep the server process alive
+// Keep the server process alive (prevent idle termination in some envs)
 setInterval(() => {
   // Empty interval to keep process alive
 }, 30000);
 
+// Error Handling & Logging
 server.on('error', (error: any) => {
   console.error('[SERVER ERROR]', error.code, error.message);
 });

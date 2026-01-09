@@ -1,19 +1,24 @@
 {
   "compilerOptions": {
-    "allowJs": true,
-    "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    // Basic Compiler Options
+    "allowJs": true, // Allow JavaScript files to be compiled
+    "noImplicitAny": false, // Don't error on expressions with an implied 'any' type
+    "noUnusedLocals": false, // Don't error on unused local variables
+    "noUnusedParameters": false, // Don't error on unused function parameters
+    // Path Aliases
+    // Configures '@/*' to point to 'src/*' for easy imports
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
-    "skipLibCheck": true,
-    "strictNullChecks": false
+    // Advanced Safety & Checking
+    "skipLibCheck": true, // Skip type checking of declaration files (.d.ts)
+    "strictNullChecks": false // Disable strict null checks (null and undefined are ignored)
   },
   "files": [],
-  // References to specific config files for app (frontend) and node (backend/scripts)
+  // Project References
+  // Separates frontend (app) and node (config/scripts) TypeScript configurations
   "references": [
     {
       "path": "./tsconfig.app.json"

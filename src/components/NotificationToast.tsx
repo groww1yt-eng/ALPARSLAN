@@ -23,6 +23,16 @@ interface ToastItemProps {
   removeNotification: (id: string) => void;
 }
 
+/**
+ * ToastItem Component
+ * 
+ * A single toast notification unit with gesture support.
+ * 
+ * Interactions:
+ * - Swipe-to-dismiss: Detects touch gestures (up, left, right) to dismiss the toast.
+ * - Auto-dismiss: Handled by the parent `NotificationToast` component.
+ * - Drag Animation: Uses inline styles for performance-critical drag tracking.
+ */
 function ToastItem({ notification, removeNotification }: ToastItemProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -30,6 +40,7 @@ function ToastItem({ notification, removeNotification }: ToastItemProps) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const Icon = iconMap[notification.type as keyof typeof iconMap];
 
+  // Logic to track touch movement delta
   const handleTouchStart = (e: React.TouchEvent) => {
     if (isDismissing) return;
     touchStart.current = {
@@ -45,7 +56,7 @@ function ToastItem({ notification, removeNotification }: ToastItemProps) {
     const deltaX = e.touches[0].clientX - touchStart.current.x;
     const deltaY = e.touches[0].clientY - touchStart.current.y;
 
-    // Only allow swiping up, not down
+    // Only allow swiping up for vertical dismiss (prevent interfering with scroll if any)
     const clampedDeltaY = Math.min(0, deltaY);
 
     setOffset({ x: deltaX, y: clampedDeltaY });
@@ -64,6 +75,7 @@ function ToastItem({ notification, removeNotification }: ToastItemProps) {
     const isSwipeLeft = deltaX < -threshold;
     const isSwipeUp = deltaY < -threshold;
 
+    // Detect if swipe crossed the threshold to trigger dismiss
     if (isSwipeRight || isSwipeLeft || isSwipeUp) {
       setIsDismissing(true);
       // Animate out further in the swipe direction
@@ -75,7 +87,7 @@ function ToastItem({ notification, removeNotification }: ToastItemProps) {
         removeNotification(notification.id);
       }, 200);
     } else {
-      // Snap back
+      // Snap back if swipe wasn't far enough
       setOffset({ x: 0, y: 0 });
     }
 
@@ -119,10 +131,17 @@ function ToastItem({ notification, removeNotification }: ToastItemProps) {
   );
 }
 
+/**
+ * NotificationToast Component
+ * 
+ * Fixed overlay container for displaying toast notifications.
+ * Manages the lifecycle (timers) of notifications using the global UI store.
+ */
 export function NotificationToast() {
   const { notifications, removeNotification } = useUIStore();
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Manage auto-dismiss timers
   useEffect(() => {
     const timers = timersRef.current;
 

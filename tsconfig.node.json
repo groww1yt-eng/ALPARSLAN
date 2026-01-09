@@ -1,19 +1,21 @@
-
 {
   "compilerOptions": {
-    "allowJs": true,
-    "noImplicitAny": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    // Compiler Options for Node.js environment (scripts, configs)
+    "allowJs": true, // Allow JS files (e.g. vite.config.ts, scripts)
+    "noImplicitAny": false, // Disable error for any type
+    "noUnusedLocals": false, // Ignore unused locals
+    "noUnusedParameters": false, // Ignore unused parameters
+    // Path mapping for aliases
     "paths": {
       "@/*": [
         "./src/*"
       ]
     },
-    "skipLibCheck": true,
-    "strictNullChecks": false
+    "skipLibCheck": true, // Skip checking of declaration files
+    "strictNullChecks": false // Disable strict null checking
   },
   "files": [],
+  // References main app TS config and self (recursive reference is common in some setups but primarily splitting contexts here)
   "references": [
     {
       "path": "./tsconfig.app.json"

@@ -4,6 +4,7 @@ import fs from 'fs';
 
 import { type DownloadOptions, sanitizeFilename } from './download.js';
 
+// Interface tracking the progress and status of a download
 export interface DownloadProgress {
   totalBytes: number;
   downloadedBytes: number;
@@ -12,7 +13,7 @@ export interface DownloadProgress {
   eta: number; // seconds remaining
   status: 'downloading' | 'converting' | 'paused' | 'completed' | 'failed' | 'canceled';
   error?: string;
-  // Multi-stage tracking
+  // Multi-stage tracking (Video -> Audio -> Merge)
   stage: 'video' | 'audio' | 'merging' | 'complete';
   videoTotalBytes: number;    // Total bytes for video stage
   audioTotalBytes: number;    // Total bytes for audio stage
@@ -20,9 +21,10 @@ export interface DownloadProgress {
   audioDownloadedBytes: number; // Downloaded in audio stage
 }
 
+// Interface for an active download job
 export interface ActiveDownload {
   videoId: string;
-  process: ChildProcess | null;
+  process: ChildProcess | null; // Reference to the spawned yt-dlp process
   isPaused: boolean;
   progress: DownloadProgress;
   startTime: number;
@@ -30,7 +32,7 @@ export interface ActiveDownload {
   lastCheckTime: number;
   filePath: string;
   options: DownloadOptions;
-  isResuming: boolean; // Flag to prevent re-registration on resume
+  isResuming: boolean; // Flag to indicate if this is a resumed session (prevents reset)
   result?: {
     filePath: string;
     fileName: string;
@@ -38,8 +40,10 @@ export interface ActiveDownload {
   };
 }
 
+// In-memory store for active downloads
 const activeDownloads = new Map<string, ActiveDownload>();
 
+// Get all active downloads formatted for frontend response
 export function getActiveDownloads(): Record<string, DownloadProgress> {
   const downloads: Record<string, DownloadProgress> = {};
   for (const [id, download] of activeDownloads.entries()) {
@@ -53,6 +57,7 @@ export function getDownloadResult(jobId: string) {
   return download?.result || null;
 }
 
+// Calculate and return current progress for a specific job
 export function getDownloadProgress(jobId: string): DownloadProgress | null {
   const download = activeDownloads.get(jobId);
   if (!download) return null;
@@ -66,7 +71,7 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
   // They are close enough.
 
 
-  // Update speed and ETA
+  // Update speed and ETA calculations dynamically
   const now = Date.now();
   const timeDiff = (now - download.lastCheckTime) / 1000; // seconds
 
@@ -86,7 +91,7 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
     download.lastCheckTime = now;
   }
 
-  // Create a copy of progress for response
+  // Create a copy of progress for response to avoid mutation issues
   const progressCopy: DownloadProgress & { result?: any } = { ...download.progress };
 
   // Include result if available
@@ -100,8 +105,9 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
   return progressCopy;
 }
 
+// Register a new download job in the manager
 export function registerDownload(jobId: string, options: DownloadOptions): void {
-  // If already registered (resume case), don't reset progress
+  // If already registered (resume case), don't reset progress completely
   if (activeDownloads.has(jobId)) {
     const existingDownload = activeDownloads.get(jobId)!;
     existingDownload.isResuming = true;
@@ -136,6 +142,7 @@ export function registerDownload(jobId: string, options: DownloadOptions): void 
   });
 }
 
+// Update downloaded bytes for the current stage
 export function updateProgress(jobId: string, downloadedBytes: number): void {
   const download = activeDownloads.get(jobId);
   if (!download) return;
@@ -193,7 +200,7 @@ export function setStage(jobId: string, stage: 'video' | 'audio' | 'merging' | '
   download.progress.stage = stage;
 
   if (stage === 'merging') {
-    // During merge, show 100% or close to it
+    // During merge, show 99% or close to it as size is hard to predict
     download.progress.percentage = 99;
   }
 }
@@ -205,6 +212,7 @@ export function setStatus(jobId: string, status: DownloadProgress['status']): vo
   download.progress.status = status;
 }
 
+// Mark download as complete and store final result
 export function completeDownload(jobId: string, finalBytes?: number, result?: {
   filePath: string;
   fileName: string;
@@ -221,7 +229,7 @@ export function completeDownload(jobId: string, finalBytes?: number, result?: {
   }
 
   // If we have the actual final file size, update totalBytes to match
-  // This ensures progress calculation is accurate
+  // This ensures progress calculation is accurate at the end
   if (finalBytes && finalBytes > 0) {
     download.progress.totalBytes = finalBytes;
     download.progress.downloadedBytes = finalBytes;
@@ -233,6 +241,7 @@ export function completeDownload(jobId: string, finalBytes?: number, result?: {
   download.progress.eta = 0;
 }
 
+// Mark download as failed and store error
 export function failDownload(jobId: string, error?: string): void {
   const download = activeDownloads.get(jobId);
   if (!download) return;
@@ -247,6 +256,7 @@ export function failDownload(jobId: string, error?: string): void {
   }
 }
 
+// Pause a download (kills process but keeps state)
 export function pauseDownload(jobId: string): boolean {
   const download = activeDownloads.get(jobId);
   if (!download) return false;
@@ -275,6 +285,7 @@ export function pauseDownload(jobId: string): boolean {
   return true;
 }
 
+// Prepare to resume a download
 export function resumeDownload(jobId: string): DownloadOptions | null {
   const download = activeDownloads.get(jobId);
   if (!download) return null;
@@ -285,6 +296,7 @@ export function resumeDownload(jobId: string): DownloadOptions | null {
   return download.options;
 }
 
+// Cancel a download (stops process and cleans up)
 export function cancelDownload(jobId: string): boolean {
   const download = activeDownloads.get(jobId);
   if (!download) return false;
@@ -296,6 +308,7 @@ export function cancelDownload(jobId: string): boolean {
     try {
       if (process.platform === 'win32') {
         try {
+          // Force kill tree on Windows
           execSync(`taskkill /pid ${download.process.pid} /f /t`);
         } catch (e) {
           // Ignore if process not found
@@ -309,7 +322,7 @@ export function cancelDownload(jobId: string): boolean {
     }
   }
 
-  // Cleanup temporary files
+  // Cleanup temporary files associated with this job
   try {
     const { outputFolder, createPerChannelFolder, channel } = download.options;
     let effectiveOutputFolder = outputFolder;

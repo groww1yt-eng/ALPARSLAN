@@ -8,6 +8,10 @@ interface ConfirmModalProps {
   onCancel: () => void;
 }
 
+/**
+ * ConfirmModal Component
+ * A reusable modal for confirming destructive actions (e.g., reset settings).
+ */
 export function ConfirmModal({
   open,
   title = 'Are you sure?',
@@ -20,7 +24,7 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-background rounded-2xl w-full max-w-sm p-6 shadow-xl relative">
-        
+
         {/* Close */}
         <button
           onClick={onCancel}

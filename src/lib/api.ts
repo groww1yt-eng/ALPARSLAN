@@ -2,6 +2,8 @@ import type { VideoMetadata } from '@/types';
 import { makeApiCall } from './apiClient';
 
 // ================= METADATA =================
+
+// Fetch video metadata from the backend
 export async function fetchMetadata(url: string): Promise<VideoMetadata> {
   const response = await makeApiCall('/api/metadata', {
     method: "POST",
@@ -27,6 +29,8 @@ export async function fetchMetadata(url: string): Promise<VideoMetadata> {
 }
 
 // ================= DOWNLOAD =================
+
+// Metadata used for resolving filenames on the backend
 export interface NamingMetadata {
   title: string;
   channel: string;
@@ -34,6 +38,7 @@ export interface NamingMetadata {
   contentType: 'single' | 'playlist';
 }
 
+// Initiate a download job
 export async function downloadVideo(
   url: string,
   videoId: string,
@@ -89,6 +94,8 @@ export async function downloadVideo(
 }
 
 // ================= FILE SIZE ESTIMATION =================
+
+// Estimate file size before downloading (useful for playlists)
 export async function getEstimatedFileSize(
   url: string,
   mode: "video" | "audio",
@@ -123,6 +130,7 @@ export async function getEstimatedFileSize(
 }
 
 // ================= PROGRESS =================
+
 export interface DownloadProgressData {
   totalBytes: number;
   downloadedBytes: number;
@@ -138,6 +146,7 @@ export interface DownloadProgressData {
   };
 }
 
+// Get progress for a specific job
 export async function getDownloadProgress(jobId: string): Promise<DownloadProgressData> {
   const response = await makeApiCall(`/api/download/progress/${jobId}`);
   if (!response.ok) {
@@ -146,6 +155,7 @@ export async function getDownloadProgress(jobId: string): Promise<DownloadProgre
   return response.json();
 }
 
+// Pause a running download
 export async function pauseDownload(jobId: string): Promise<{ success: boolean }> {
   const response = await makeApiCall(`/api/download/pause/${jobId}`, {
     method: "POST"
@@ -156,6 +166,7 @@ export async function pauseDownload(jobId: string): Promise<{ success: boolean }
   return response.json();
 }
 
+// Resume a paused download
 export async function resumeDownload(jobId: string): Promise<{ success: boolean }> {
   const response = await makeApiCall(`/api/download/resume/${jobId}`, {
     method: "POST"
@@ -166,6 +177,7 @@ export async function resumeDownload(jobId: string): Promise<{ success: boolean 
   return response.json();
 }
 
+// Cancel a download
 export async function cancelDownload(jobId: string): Promise<{ success: boolean }> {
   const response = await makeApiCall(`/api/download/cancel/${jobId}`, {
     method: "POST"
@@ -176,6 +188,7 @@ export async function cancelDownload(jobId: string): Promise<{ success: boolean 
   return response.json();
 }
 
+// Fetch all active downloads (for sync/persistence)
 export async function fetchActiveDownloads(): Promise<{ downloads: Record<string, DownloadProgressData> }> {
   const response = await makeApiCall('/api/downloads/active');
   if (!response.ok) {

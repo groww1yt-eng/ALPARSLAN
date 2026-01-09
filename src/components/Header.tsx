@@ -12,11 +12,16 @@ const pageTitles: Record<string, string> = {
   '/compatibility': 'Compatibility',
 };
 
+/**
+ * Header Component
+ * Displays the current page title and global actions (Sidebar toggle, Active jobs badge, Theme toggle).
+ */
 export function Header() {
   const { setSidebarOpen } = useUIStore();
   const { jobs } = useDownloadsStore();
   const location = useLocation();
 
+  // Calculate active downloads (downloading or queued state)
   const activeJobsCount = jobs.filter(j => j.status === 'downloading' || j.status === 'queued').length;
 
   return (

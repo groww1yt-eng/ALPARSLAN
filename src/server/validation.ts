@@ -1,13 +1,14 @@
+// Validate and sanitize user-provided YouTube URLs
 export function validateAndSanitizeUrl(inputUrl: string): string {
     try {
         const url = new URL(inputUrl);
 
-        // Protocol check
+        // Protocol check (security)
         if (url.protocol !== 'http:' && url.protocol !== 'https:') {
             throw new Error('Invalid protocol: must be http or https');
         }
 
-        // Hostname check
+        // Hostname check (whitelist)
         const ALLOWED_HOSTS = [
             'youtube.com',
             'www.youtube.com',
@@ -21,7 +22,7 @@ export function validateAndSanitizeUrl(inputUrl: string): string {
             throw new Error('Invalid hostname: must be a YouTube domain');
         }
 
-        // Clean query params
+        // Clean query params to remove tracking parameters
         const allowedParams = ['v', 'list', 't'];
         const params = new URLSearchParams(url.search);
         const newParams = new URLSearchParams();
@@ -30,7 +31,7 @@ export function validateAndSanitizeUrl(inputUrl: string): string {
             if (params.has(p)) newParams.set(p, params.get(p)!);
         });
 
-        // Replace params
+        // Replace params with cleaned version
         url.search = newParams.toString();
         return url.toString();
     } catch (error) {

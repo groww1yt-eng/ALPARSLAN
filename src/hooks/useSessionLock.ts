@@ -9,6 +9,7 @@ export function useSessionLock() {
 
     // Calculate lock state derived from store
     // A session is active if ANY job is in a non-terminal state
+    // 'converting' is crucial as file ops are still happening
     const isLocked = jobs.some(job =>
         ['queued', 'downloading', 'converting', 'paused', 'waiting'].includes(job.status)
     );
@@ -55,6 +56,7 @@ export function useSessionLock() {
         }
     };
 
+    // Helper to explain WHY usage is locked
     const showLockedMessage = () => {
         toast({
             variant: 'default', // Info/Warning style

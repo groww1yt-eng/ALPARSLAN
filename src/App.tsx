@@ -13,9 +13,11 @@ import Settings from "./pages/Settings";
 import Compatibility from "./pages/Compatibility";
 import NotFound from "./pages/NotFound";
 
+// Initialize React Query client for data fetching
 const queryClient = new QueryClient();
 
 const App = () => {
+  // Effect to handle API version mismatch events dispatched by apiClient
   useEffect(() => {
     const handleVersionMismatch = (event: any) => {
       const { expected, actual } = event.detail;
@@ -30,12 +32,17 @@ const App = () => {
   }, []);
 
   return (
+    // QueryClientProvider: Provides React Query context
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        {/* Toasters for notifications */}
         <Toaster />
         <Sonner position="top-center" richColors />
+
+        {/* Client-side Routing */}
         <BrowserRouter>
           <Routes>
+            {/* Main Layout Wrapper */}
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/active" element={<ActiveJobs />} />
@@ -43,6 +50,7 @@ const App = () => {
               <Route path="/settings" element={<Settings />} />
               <Route path="/compatibility" element={<Compatibility />} />
             </Route>
+            {/* Catch-all 404 Route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

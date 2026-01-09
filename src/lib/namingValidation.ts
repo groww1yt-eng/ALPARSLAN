@@ -9,30 +9,30 @@ const ALL_TAGS = ['<title>', '<index>', '<quality>', '<channel>', '<date>', '<fo
 // Get mandatory tags based on content type and mode
 export function getMandatoryTags(contentType: ContentType, mode: DownloadMode): string[] {
   const mandatory: string[] = ['<title>'];
-  
+
   if (contentType === 'playlist') {
     mandatory.push('<index>');
   }
-  
+
   if (mode === 'video') {
     mandatory.push('<quality>');
   }
-  
+
   return mandatory;
 }
 
 // Get allowed tags based on content type and mode
 export function getAllowedTags(contentType: ContentType, mode: DownloadMode): string[] {
   const allowed = ['<title>', '<channel>', '<date>', '<format>'];
-  
+
   if (contentType === 'playlist') {
     allowed.push('<index>');
   }
-  
+
   if (mode === 'video') {
     allowed.push('<quality>');
   }
-  
+
   return allowed;
 }
 
@@ -44,6 +44,7 @@ export function extractTags(template: string): string[] {
 }
 
 // Check for invalid characters (user-typed)
+// We strip known valid tags first, then check legacy/user text
 export function hasInvalidCharacters(template: string): boolean {
   // Extract tag contents and remove them first to avoid checking tag syntax
   const withoutTags = template.replace(/<[^>]+>/g, '');
@@ -57,7 +58,7 @@ export function getInvalidCharacters(template: string): string[] {
   return [...new Set(matches)]; // Unique values
 }
 
-// Validate naming template
+// Validate naming template (Frontend shared logic)
 export function validateNamingTemplate(
   template: string,
   contentType: ContentType,
@@ -102,14 +103,14 @@ export function validateNamingTemplate(
   if (invalidTags.length > 0) {
     const typeText = contentType === 'playlist' ? 'Playlist' : 'Single';
     const tag = invalidTags[0];
-    
+
     if (tag === '<index>' && contentType === 'single') {
       return {
         type: 'invalid_tag',
         message: `The tag ${tag} is not allowed for Single videos (only for Playlists).`,
       };
     }
-    
+
     if (tag === '<quality>' && mode === 'audio') {
       return {
         type: 'invalid_quality',
@@ -136,18 +137,18 @@ export function sanitizeFilename(filename: string): string {
   return filename.replace(/[<>:"|?*\\/]/g, '_');
 }
 
-// Replace tags with actual values
+// Replace tags with actual values (Mock/Preview purposes on frontend)
 export function replaceTagsInTemplate(
   template: string,
   replacements: Record<string, string>
 ): string {
   let result = template;
-  
+
   for (const [tag, value] of Object.entries(replacements)) {
     // Sanitize the replacement value to remove invalid characters
     const sanitized = sanitizeFilename(value);
     result = result.replace(new RegExp(tag, 'g'), sanitized);
   }
-  
+
   return result;
 }

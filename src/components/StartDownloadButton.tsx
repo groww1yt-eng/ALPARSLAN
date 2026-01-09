@@ -7,9 +7,14 @@ interface Props {
   disabled?: boolean
 }
 
+/**
+ * StartDownloadButton Component
+ * A primary action button with a custom subtle ripple animation effect on click.
+ */
 export default function StartDownloadButton({ onClick, disabled }: Props) {
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  // Determine click coordinates for ripple origin
   const createRipple = (event: React.MouseEvent<HTMLButtonElement>) => {
     const button = buttonRef.current
     if (!button) return
@@ -29,6 +34,7 @@ export default function StartDownloadButton({ onClick, disabled }: Props) {
 
     button.appendChild(ripple)
 
+    // Clear ripple element after animation
     setTimeout(() => ripple.remove(), 600)
   }
 

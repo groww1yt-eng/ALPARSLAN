@@ -18,11 +18,15 @@ interface PlaylistSelectorProps {
 }
 
 /**
- * Modal component for selecting specific videos from a playlist to download.
- * Supports searching, selecting all/none, and drag-and-drop positioning.
- *
- * @param {PlaylistSelectorProps} props - Component props
- * @returns {JSX.Element} The rendered modal
+ * PlaylistSelector Component
+ * 
+ * Interactive modal for filtering, selecting, and confirming videos from a playlist.
+ * 
+ * Key Features:
+ * - Floating Draggable Modal: Uses mouse event listeners to allow repositioning.
+ * - Search Filtering: Real-time filtering of video list by title.
+ * - Bulk Actions: "Select All" / "Deselect All".
+ * - Selection Persistence: Remembers passed-in active selections.
  */
 export function PlaylistSelector({ videos, onConfirm, onClose }: PlaylistSelectorProps) {
   // Start with videos that are already selected (or empty if none)

@@ -11,7 +11,7 @@ export interface HandleAppErrorOptions {
   userMessagePrefix?: string;
 }
 
-// Parse error and return a user-friendly message
+// Parse error and return a user-friendly message based on known patterns
 function getFriendlyErrorMessage(error: any, defaultMessage: string): string {
   const rawMessage = error instanceof Error ? error.message : String(error);
   // If rawMessage is the JSON stringified error, simpler message is better?
@@ -75,6 +75,8 @@ function getFriendlyErrorMessage(error: any, defaultMessage: string): string {
   return defaultMessage;
 }
 
+// Centralized error handling utility
+// Logs to console and optionally shows UI notification
 export function handleAppError(error: unknown, options: HandleAppErrorOptions = {}): string {
   const {
     title = 'Error',

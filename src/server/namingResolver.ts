@@ -3,39 +3,42 @@
  * 
  * Handles filename template resolution, validation, and sanitization
  * for the download system. This is the single source of truth for
- * filename generation.
+ * filename generation to ensure consistency across the application.
  */
 
 export type DownloadMode = 'video' | 'audio';
 export type ContentType = 'single' | 'playlist';
 
+// Interface for validation results of a naming template
 export interface NamingValidationResult {
     valid: boolean;
     message?: string;
     type?: 'empty' | 'missing_mandatory' | 'invalid_tag' | 'invalid_character' | 'invalid_quality' | 'invalid_index';
 }
 
+// Params needed to resolve a template into a real filename
 export interface ResolveFilenameParams {
     template: string;
     title: string;
     channel: string;
     quality?: string;
     format: string;
-    index?: number;
+    index?: number; // Playlist index
     date: string;
     mode: DownloadMode;
     contentType: ContentType;
 }
 
-// Characters invalid for Windows/Unix filenames
+// Characters invalid for Windows/Unix filenames (reserved characters)
 const INVALID_FILENAME_CHARS = /[\\/:*?"<>|]/g;
 
-// All supported tags
+// All supported tags available to users
 const ALL_TAGS = ['<title>', '<index>', '<quality>', '<channel>', '<date>', '<format>'];
 
 /**
  * Sanitize metadata values from YouTube (automatic, always applied)
  * Replaces invalid filesystem characters with safe alternatives
+ * e.g., "AC/DC" -> "AC_DC"
  */
 export function sanitizeMetadata(value: string): string {
     const replacements: Record<string, string> = {
@@ -77,11 +80,11 @@ export function hasInvalidUserCharacters(template: string): boolean {
 export function getInvalidCharacters(template: string): string[] {
     const withoutTags = template.replace(/<[^>]+>/g, '');
     const matches = withoutTags.match(INVALID_FILENAME_CHARS) || [];
-    return [...new Set(matches)];
+    return [...new Set(matches)]; // Return unique characters
 }
 
 /**
- * Extract all tags from a template
+ * Extract all tags from a template string
  */
 export function extractTags(template: string): string[] {
     const tagRegex = /<[^>]+>/g;
@@ -90,17 +93,17 @@ export function extractTags(template: string): string[] {
 }
 
 /**
- * Get mandatory tags based on content type and mode
+ * Get list of mandatory tags that MUST be present based on context
  */
 export function getMandatoryTags(contentType: ContentType, mode: DownloadMode): string[] {
-    const mandatory: string[] = ['<title>'];
+    const mandatory: string[] = ['<title>']; // Title is always mandatory
 
     if (contentType === 'playlist') {
-        mandatory.push('<index>');
+        mandatory.push('<index>'); // Playlist items must have index to keep order
     }
 
     if (mode === 'video') {
-        mandatory.push('<quality>');
+        mandatory.push('<quality>'); // Video files should specify quality to avoid ambiguity
     }
 
     return mandatory;
@@ -124,8 +127,8 @@ export function getAllowedTags(contentType: ContentType, mode: DownloadMode): st
 }
 
 /**
- * Validate a naming template
- * Returns validation result with error details if invalid
+ * Validate a user-provided naming template
+ * Returns validation result with detailed error messages if invalid
  */
 export function validateTemplate(
     template: string,
@@ -141,7 +144,7 @@ export function validateTemplate(
         };
     }
 
-    // Check for invalid characters in user-typed portions
+    // Check for invalid characters in literal portions
     if (hasInvalidUserCharacters(template)) {
         const invalidChars = getInvalidCharacters(template);
         return {
@@ -151,7 +154,7 @@ export function validateTemplate(
         };
     }
 
-    // Extract tags from template
+    // Extract tags from template for logic validation
     const tagsInTemplate = extractTags(template);
     const mandatoryTags = getMandatoryTags(contentType, mode);
     const allowedTags = getAllowedTags(contentType, mode);
@@ -169,7 +172,7 @@ export function validateTemplate(
         };
     }
 
-    // Check for disallowed tags
+    // Check for disallowed tags (e.g. index in single Video)
     const invalidTags = tagsInTemplate.filter((tag) => !allowedTags.includes(tag));
     if (invalidTags.length > 0) {
         const tag = invalidTags[0];
@@ -195,13 +198,13 @@ export function validateTemplate(
 }
 
 /**
- * Resolve a filename template to an actual filename
- * Replaces all tags with their actual values
+ * Resolve a filename template to an actual filename string
+ * Replaces all tags with their actual sanitized values
  */
 export function resolveFilename(params: ResolveFilenameParams): string {
     const { template, title, channel, quality, format, index, date, mode } = params;
 
-    // Build replacements map
+    // Build replacements map with sanitized values
     const replacements: Record<string, string> = {
         '<title>': sanitizeMetadata(title),
         '<channel>': sanitizeMetadata(channel),
@@ -219,9 +222,10 @@ export function resolveFilename(params: ResolveFilenameParams): string {
         replacements['<index>'] = String(index).padStart(2, '0');
     }
 
-    // Replace all tags
+    // Replace all tags in the template
     let result = template;
     for (const [tag, value] of Object.entries(replacements)) {
+        // use regex with global flag to replace all occurrences
         result = result.replace(new RegExp(tag.replace(/[<>]/g, '\\$&'), 'g'), value);
     }
 

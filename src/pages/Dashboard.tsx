@@ -81,6 +81,8 @@ export default function Dashboard() {
   }, [currentMetadata]);
 
   // Sync active downloads on mount (background persistence)
+  // This ensures that if the user refreshed the page, ongoing downloads are re-discovered
+  // and their polling is resumed.
   useEffect(() => {
     const syncDownloads = async () => {
       try {
@@ -89,6 +91,8 @@ export default function Dashboard() {
         // Update local state for each active download
         Object.entries(downloads).forEach(([jobId, progress]) => {
           // Check if job exists in store
+          // useDownloadsStore.getState() is used to access the store outside of the hook context if needed,
+          // but here `useDownloadsStore` hook values could be stale in the closure, so getState is safer.
           const existingJob = useDownloadsStore.getState().jobs.find(j => j.id === jobId);
 
           if (existingJob) {
@@ -115,6 +119,8 @@ export default function Dashboard() {
   }, []);
 
   // Poll progress for a specific job
+  // We maintain a local interval map to poll each active job independently.
+  // This avoids a single global interval that might get clogged.
   const pollDownloadProgress = (jobId: string, details: { title: string, channel: string, thumbnail: string, mode: DownloadMode, quality?: VideoQuality, format?: AudioFormat }) => {
     // Clear any existing interval for this job
     if (activeIntervals.current.has(jobId)) {
@@ -296,9 +302,12 @@ export default function Dashboard() {
 
       try {
         // Calculate playlistItems string for the backend if in playlist mode
+        // This effectively translates the UI state (Range Start/End or Manual Selection)
+        // into a string format that the backend/yt-dlp understands (e.g. "1-5" or "1,3,5")
         let playlistItems: string | undefined = undefined;
         if (currentMetadata.isPlaylist) {
           if (playlistMode === 'range') {
+            // Validate start and end range input
             const maxCount = currentMetadata.videoCount ?? currentMetadata.videos?.length ?? 0;
             const startStr = rangeStart.trim();
             const endStr = rangeEnd.trim();
@@ -359,6 +368,7 @@ export default function Dashboard() {
             playlistItems = `${startNum}-${endNum}`;
           } else if (playlistMode === 'manual') {
             // Use selectedVideos state which contains the latest selection status
+            // Map selected internal IDs back to their 1-based index for yt-dlp
             const sourceVideos = selectedVideos.length > 0 ? selectedVideos : (currentMetadata.videos || []);
             const selectedIndices = sourceVideos
               .map((v, i) => v.selected ? v.index : null) // Use v.index (original index)
@@ -538,6 +548,8 @@ export default function Dashboard() {
 
     if (currentMetadata.isPlaylist && currentMetadata.videos) {
       // Determine which videos to download based on playlist mode
+      // This prepares the list of video objects so we can fire individual download requests
+      // or a single batch request if supported (currently iterating one by one for better control)
       let videosToDownload: PlaylistVideo[] = [];
 
       if (playlistMode === 'all') {

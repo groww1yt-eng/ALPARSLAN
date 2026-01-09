@@ -10,6 +10,7 @@ const dnsResolve = promisify(dns.resolve);
 // Minimum recommended version for yt-dlp to ensure YouTube compatibility
 const MIN_YTDLP_VERSION = '2023.01.01'; // Safe baseline, adjust as needed
 
+// Comprehensive interface for system health and diagnostics
 export interface SystemInfo {
     versions: {
         node: string;
@@ -33,14 +34,14 @@ export interface SystemInfo {
         status: 'compatible' | 'partial' | 'incompatible';
         message: string;
     };
-    issues: string[];
+    issues: string[]; // List of accumulated issues found during check
     requirements: {
         ytdlp: {
             minVersion: string;
             meetsRequirement: boolean;
         };
     };
-    // Advanced Diagnostics
+    // Advanced Diagnostics for debugging
     permissions: {
         writeAccess: boolean;
         outputFolder: string;
@@ -73,7 +74,7 @@ export interface SystemInfo {
         status: 'working' | 'failing' | 'none';
     };
     networkPath: {
-        clientToBackend: boolean; // Always true if reaching this
+        clientToBackend: boolean; // Always true if reaching this endpoint
         backendToInternet: boolean;
         backendToYouTube: boolean;
     };
@@ -83,7 +84,7 @@ export interface SystemInfo {
 
 import { API_VERSION } from './config.js';
 
-// Helper to run command and get output safely
+// Helper: Run shell command and get stdout safely
 async function getCommandOutput(command: string): Promise<string> {
     try {
         const { stdout } = await execAsync(command);
@@ -93,7 +94,7 @@ async function getCommandOutput(command: string): Promise<string> {
     }
 }
 
-// Check YouTube Extractor Health
+// Check YouTube Extractor Health by fetching metadata for a known stable video
 async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partial' | 'incompatible'; message: string }> {
     try {
         // "Me at the zoo" - short, stable metadata check
@@ -112,7 +113,7 @@ async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partia
     }
 }
 
-// Check Folder Write Permissions
+// Check if the server has write permissions to the output folder
 async function checkPermissions(folder: string): Promise<{ writeAccess: boolean; outputFolder: string }> {
     const resolvedPath = path.resolve(folder);
     try {
@@ -120,6 +121,7 @@ async function checkPermissions(folder: string): Promise<{ writeAccess: boolean;
             // Try to create it to check permissions
             fs.mkdirSync(resolvedPath, { recursive: true });
         }
+        // Attempt to write and delete a test file
         const testFile = path.join(resolvedPath, `.alp_write_test_${Date.now()}`);
         fs.writeFileSync(testFile, 'test');
         fs.unlinkSync(testFile);
@@ -129,7 +131,7 @@ async function checkPermissions(folder: string): Promise<{ writeAccess: boolean;
     }
 }
 
-// Check DNS Health
+// Check DNS resolution speed and success
 async function checkDnsHealth(): Promise<{ status: 'ok' | 'fail' | 'slow'; responseTime: number }> {
     const start = Date.now();
     try {
@@ -144,10 +146,10 @@ async function checkDnsHealth(): Promise<{ status: 'ok' | 'fail' | 'slow'; respo
     }
 }
 
-// Check IP Reputation
+// Check if current IP is blocked or throttled by YouTube
 async function checkIpReputation(): Promise<{ status: 'clean' | 'blocked' | 'throttled' | 'unknown'; message: string }> {
     try {
-        // Simple fetch test to YouTube
+        // Simple fetch test to YouTube main page
         const res = await fetch('https://www.youtube.com/', {
             headers: { 'User-Agent': 'Mozilla/5.0' }
         });
@@ -160,7 +162,7 @@ async function checkIpReputation(): Promise<{ status: 'clean' | 'blocked' | 'thr
     }
 }
 
-// Check FFmpeg Codecs
+// Check available FFmpeg codecs to ensure we can convert formats
 async function checkFfmpegCodecs(): Promise<{ mp3: boolean; aac: boolean; h264: boolean }> {
     const output = await getCommandOutput('ffmpeg -codecs');
     return {
@@ -170,14 +172,14 @@ async function checkFfmpegCodecs(): Promise<{ mp3: boolean; aac: boolean; h264: 
     };
 }
 
-// Get Python Environment Info
+// Get Python Environment Info (System vs Virtual Env)
 async function getPythonInfo(): Promise<{ version: string; isVenv: boolean }> {
     const version = await getCommandOutput('python --version');
     const isVenv = !!(process.env.VIRTUAL_ENV || process.env.CONDA_PREFIX);
     return { version: version || 'Not detected', isVenv };
 }
 
-// Check YouTube Cookies
+// Check for existence of YouTube cookies file
 async function checkCookieStatus(): Promise<{ present: boolean; fileName: string; sizeBytes: number }> {
     const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
     if (fs.existsSync(cookiePath)) {
@@ -187,13 +189,13 @@ async function checkCookieStatus(): Promise<{ present: boolean; fileName: string
     return { present: false, fileName: '', sizeBytes: 0 };
 }
 
-// Check Proxy Status
+// Check if a proxy is configured and working
 async function checkProxyStatus(): Promise<{ detected: boolean; url: string; status: 'working' | 'failing' | 'none' }> {
     const proxyUrl = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy;
     if (!proxyUrl) return { detected: false, url: '', status: 'none' };
 
     try {
-        // Simple connectivity test through the proxy environment
+        // Simple connectivity test through the proxy environment using fetch
         const res = await fetch('https://www.google.com', { method: 'HEAD', signal: AbortSignal.timeout(3000) });
         return { detected: true, url: proxyUrl, status: res.ok ? 'working' : 'failing' };
     } catch {
@@ -201,6 +203,7 @@ async function checkProxyStatus(): Promise<{ detected: boolean; url: string; sta
     }
 }
 
+// Main function to gather all system diagnostics
 export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
     const defaultOutput = outputPath || 'C:\\Users\\ariya\\Downloads\\ALP';
 
@@ -250,9 +253,9 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
         lastChecked: new Date().toISOString()
     };
 
-    // Check Node (already done)
+    // Check Node (already done via process.version)
 
-    // Check yt-dlp
+    // Check yt-dlp presence and version
     try {
         // Try to get version
         const ytdlpVersion = await getCommandOutput('python -m yt_dlp --version');
@@ -265,7 +268,7 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
         }
     } catch (e) { }
 
-    // Check ffmpeg
+    // Check ffmpeg presence and version
     try {
         const ffmpegOutput = await getCommandOutput('ffmpeg -version');
         const firstLine = ffmpegOutput.split('\n')[0];
@@ -277,12 +280,12 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
         }
     } catch (e) { }
 
-    // Check Internet
+    // Check Internet Connectivity
     try {
         await dnsResolve('google.com');
         info.health.internet = true;
     } catch (e) {
-        // Try fallback
+        // Try fallback DNS (Cloudflare) if domain resolution fails
         try {
             await dnsResolve('8.8.8.8'); // Cloudflare
             info.health.internet = true;
@@ -307,7 +310,7 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
     // Check yt-dlp updates (optional: fetch from github)
     if (info.health.internet) {
         try {
-            // We can't easily fetch external URLs without 'fetch' in Node 18+ or axios.
+            // Fetch latest release tag from GitHub API
             // Assuming Node 18+ (has global fetch)
             const res = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest');
             if (res.ok) {
@@ -315,23 +318,23 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
                 const latestTag = data.tag_name; // e.g. "2024.03.10"
                 if (latestTag) {
                     info.updates.ytdlp.latest = latestTag;
-                    // Simple string comparison or semver? yt-dlp uses dates YYYY.MM.DD
+                    // Compare current vs latest
                     if (info.versions.ytdlp !== 'Not detected' && info.versions.ytdlp !== latestTag) {
                         info.updates.ytdlp.available = true;
                     }
                 }
             }
         } catch (e) {
-            // Ignore update check failure
+            // Ignore update check failure (non-critical)
         }
     }
 
-    // Add issue if min requirement not met
+    // Add issue if min requirement not met for yt-dlp
     if (info.health.ytdlp && !info.requirements.ytdlp.meetsRequirement) {
         info.issues.push(`Installed yt-dlp version (${info.versions.ytdlp}) is older than recommended (${MIN_YTDLP_VERSION}). Update strongly recommended.`);
     }
 
-    // Advanced Diagnostics
+    // Run Advanced Diagnostics
     info.permissions = await checkPermissions(defaultOutput);
     info.dns = await checkDnsHealth();
     info.ipReputation = await checkIpReputation();
@@ -340,10 +343,9 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
     info.cookies = await checkCookieStatus();
     info.proxy = await checkProxyStatus();
 
-    // Populate Network Path
+    // Populate Network Path Visualization Data
     info.networkPath.backendToInternet = info.health.internet;
     info.networkPath.backendToYouTube = info.compatibility.status === 'compatible' || info.compatibility.status === 'partial';
 
     return info;
 }
-

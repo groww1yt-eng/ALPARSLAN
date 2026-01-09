@@ -19,10 +19,24 @@ import {
 
 
 
+/**
+ * Settings Page Component
+ * 
+ * Manages global application settings and preferences.
+ * 
+ * Key features:
+ * - Uses a "Draft" state (`draftSettings`) allows users to make multiple changes 
+ *   before committing them to the store with "Save".
+ * - Blocks navigation (using `useBlocker` or `beforeUnload`) if there are unsaved changes.
+ * - Handles resetting settings to defaults.
+ * - Respects the global session lock to prevent critical changes during active downloads.
+ */
 export default function Settings() {
   const { settings, updateSettings, resetSettings } = useSettingsStore();
   const { addNotification } = useUIStore();
   const { isLocked, showLockedMessage } = useSessionLock();
+
+  // Local state for draft settings to allow "Save" confirmation pattern
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [draftSettings, setDraftSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
@@ -33,6 +47,7 @@ export default function Settings() {
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
 
 
+  // Prevent closing window with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!hasChanges) return;
