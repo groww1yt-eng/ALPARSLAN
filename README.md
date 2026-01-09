@@ -1,80 +1,102 @@
-# Welcome to your Lovable project
+# ALPARSLAN - Advanced YouTube Downloader
 
-## Project info
+ALPARSLAN is a powerful, locally-hosted YouTube downloader web application. It allows you to download videos, audio, and playlists from YouTube with advanced control over quality, format, and file naming. It leverages `yt-dlp` for robust download capabilities and provides a modern, responsive web interface.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Key Features
 
-## How can I edit this code?
+*   **Video & Audio Downloads**: Download videos in various resolutions (up to 4K) or extract audio in multiple formats (MP3, M4A, WAV, etc.).
+*   **Playlist Support**: Download entire playlists with selective filtering (range or manual selection).
+*   **Custom Naming**: Define powerful naming templates using variables like `{title}`, `{channel}`, `{date}`, `{quality}`, etc.
+*   **Metadata Embedding**: Automatically embeds metadata (title, artist, album art) into downloaded files.
+*   **Subtitle Support**: Download and embed subtitles (Auto-generated or specific languages).
+*   **Queue Management**: Real-time progress tracking, pause/resume/cancel capabilities for active downloads.
+*   **Per-Channel Organization**: Automatically sort downloads into channel-specific subfolders.
+*   **Dark Mode**: Sleek, modern user interface with dark mode support.
 
-There are several ways of editing your application.
+## 🛠️ Technology Stack
 
-**Use Lovable**
+*   **Frontend**: React, Vite, TypeScript, Tailwind CSS, shadcn/ui
+*   **Backend**: Node.js, Express
+*   **Core Engine**: `yt-dlp` (Python-based command-line tool)
+*   **State Management**: Zustand (with persistence)
+*   **Validation**: Zod
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 📋 Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+Before setting up the project, ensure you have the following installed:
 
-**Use your preferred IDE**
+1.  **Node.js** (v18 or higher)
+2.  **FFmpeg**: Required for media merging and format conversion.
+    *   *Windows*: `winget install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/) and add to PATH.
+    *   *Mac*: `brew install ffmpeg`
+    *   *Linux*: `sudo apt install ffmpeg`
+3.  **Python**: Required for `yt-dlp` to run (unless using the binary).
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## ⚡ Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/your-username/ALPARSLAN.git
+    cd ALPARSLAN
+    ```
 
-## Package manager
+2.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
 
-This project uses **npm**.
+3.  **Setup Environment**:
+    Based on the `.env.example`, create a `.env` file if needed, though the defaults usually work for local development.
 
-- Do not use Bun/Yarn/PNPM for this repo.
-- `package-lock.json` is the source of truth and should be committed.
+## 🏃 Usage
 
-Follow these steps:
+### Running Locally
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+To start both the backend server and the frontend development server concurrently:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm ci
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm run dev:all
 ```
 
-**Edit a file directly in GitHub**
+*   **Frontend**: http://localhost:5173
+*   **Backend**: http://localhost:3001
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Building for Production
 
-**Use GitHub Codespaces**
+To build the frontend and backend for production usage:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npm run build:all
+```
 
-## What technologies are used for this project?
+To run the production server:
 
-This project is built with:
+```bash
+npm run start
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## ⚙️ Configuration
 
-## How can I deploy this project?
+The project uses several configuration files. Here's a quick guide:
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+*   **`vite.config.ts`**: Configures the Vite dev server, including proxy settings (`/api` -> `localhost:3001`) to avoid CORS issues during development.
+*   **`server.ts`**: The main entry point for the Express backend.
+*   **`src/server/config.ts`**: Contains backend-specific constants like `API_VERSION`.
+*   **`tailwind.config.ts`**: Configuration for Tailwind CSS styling and branding.
 
-## Can I connect a custom domain to my Lovable project?
+## 📝 Usage Guide
 
-Yes, you can!
+1.  **Dashboard**: Paste a YouTube link in the input field and click "Fetch".
+2.  **Selection**: Choose "Video" or "Audio" mode. Select specific videos if it's a playlist.
+3.  **Options**: Configure quality (e.g., 1080p), format (e.g., MP3), and whether to download subtitles.
+4.  **Download**: Click "Start Download". The job will appear in the queue with a progress bar.
+5.  **Files**: Downloads are saved to the `downloads` folder in the project root by default (or the configured output path).
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🤝 Contributing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Contributions are welcome!
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
+3.  Commit your changes.
+4.  Push to the branch.
+5.  Open a Pull Request.

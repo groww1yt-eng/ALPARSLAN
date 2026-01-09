@@ -18,13 +18,25 @@ import {
 import { cn } from '@/lib/utils';
 
 interface NamingOptionsProps {
+  /** The type of content (single video or playlist) */
   contentType: ContentType;
+  /** The download mode (video or audio) */
   mode: DownloadMode;
+  /** The currently active template string */
   currentTemplate: string;
+  /** Callback fired when the template is successfully saved */
   onTemplateChange: (template: string) => void;
+  /** Whether the component is disabled (e.g., during download) */
   disabled?: boolean;
 }
 
+/**
+ * Component for configuring and validating custom filename naming templates.
+ * Allows users to edit templates with valid variables and saves them to the backend.
+ *
+ * @param {NamingOptionsProps} props - Component props
+ * @returns {JSX.Element} The rendered component
+ */
 export function NamingOptions({
   contentType,
   mode,

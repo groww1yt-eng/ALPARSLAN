@@ -5,12 +5,25 @@ import { cn } from '@/lib/utils';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Props for the PlaylistSelector component.
+ */
 interface PlaylistSelectorProps {
+  /** Array of videos in the playlist */
   videos: PlaylistVideo[];
+  /** Callback fired when selection is confirmed */
   onConfirm: (selectedVideos: PlaylistVideo[]) => void;
+  /** Callback fired when the modal is closed */
   onClose: () => void;
 }
 
+/**
+ * Modal component for selecting specific videos from a playlist to download.
+ * Supports searching, selecting all/none, and drag-and-drop positioning.
+ *
+ * @param {PlaylistSelectorProps} props - Component props
+ * @returns {JSX.Element} The rendered modal
+ */
 export function PlaylistSelector({ videos, onConfirm, onClose }: PlaylistSelectorProps) {
   // Start with videos that are already selected (or empty if none)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(

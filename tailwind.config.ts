@@ -13,6 +13,7 @@ export default {
       },
     },
     extend: {
+      // Extended theme configuration for shadcn/ui variables
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },

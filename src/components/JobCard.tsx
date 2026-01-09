@@ -17,15 +17,28 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import ScrollingTitle from './ScrollingTitle';
 
+/**
+ * Props for the JobCard component.
+ */
 interface JobCardProps {
+  /** The download job object containing status, progress, and metadata */
   job: DownloadJob;
+  /** Callback fired when resume button is clicked */
   onResume?: () => void;
+  /** Callback fired when pause button is clicked */
   onPause?: () => void;
+  /** Callback fired when cancel button is clicked */
   onCancel?: () => void;
+  /** Callback fired when retry button is clicked */
   onRetry?: () => void;
+  /** Callback fired when remove button is clicked */
   onRemove?: () => void;
 }
 
+/**
+ * Configuration object for job status UI elements.
+ * Maps each status to an icon, color, background color, and label.
+ */
 const statusConfig = {
   queued: {
     icon: Clock,
@@ -77,6 +90,12 @@ const statusConfig = {
   },
 };
 
+/**
+ * Displays a single download job card with status, progress, and controls.
+ *
+ * @param {JobCardProps} props - Component props
+ * @returns {JSX.Element} The rendered job card
+ */
 export function JobCard({ job, onResume, onPause, onCancel, onRetry, onRemove }: JobCardProps) {
   const config = statusConfig[job.status];
   const StatusIcon = config.icon;

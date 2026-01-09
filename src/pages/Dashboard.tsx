@@ -4,7 +4,7 @@ import { useDownloadsStore } from '@/store/useDownloadsStore';
 import { useMetadataStore } from '@/store/useMetadataStore';
 import { useUIStore } from '@/store/useUIStore';
 import { fetchMetadata, downloadVideo as apiDownloadVideo, getDownloadProgress, pauseDownload, resumeDownload, getEstimatedFileSize, fetchActiveDownloads } from '@/lib/api';
-import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/demoData';
+import { isValidYouTubeUrl, validateAndSanitizeUrl } from '@/lib/utils';
 import { PlaylistSelector } from '@/components/PlaylistSelector';
 import { NamingOptions } from '@/components/NamingOptions';
 import { Switch } from '@/components/ui/switch';
@@ -25,6 +25,17 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
+/**
+ * Main Dashboard component handling URL input, metadata fetching, and download initiation.
+ * Manages the core application flow, including:
+ * - Fetching video/playlist metadata
+ * - Configuring download options (quality, format, mode)
+ * - Calculating estimated file size
+ * - initiating downloads via the backend
+ * - Polling for download progress (though `activeIntervals` handles local polling for UI updates)
+ *
+ * @returns {JSX.Element} The rendered dashboard
+ */
 export default function Dashboard() {
   const { settings } = useSettingsStore();
   const { currentMetadata, setCurrentMetadata } = useMetadataStore();
@@ -207,6 +218,10 @@ export default function Dashboard() {
     }
   }, [contentType, mode, settings.namingTemplates]);
 
+  /**
+   * Fetches metadata for the provided YouTube URL.
+   * Includes rate limiting to prevent spamming the backend.
+   */
   const handleFetchMetadata = async () => {
     // Rate limiting: 2 seconds
     const now = Date.now();
@@ -410,6 +425,11 @@ export default function Dashboard() {
     };
   }, [url, currentMetadata, mode, quality, format, playlistMode, rangeStart, rangeEnd, selectedVideos]);
 
+  /**
+   * Initiates the download process.
+   * Handles both single video and playlist downloads (range or manual selection).
+   * Validates required data before sending requests to the backend.
+   */
   const handleStartDownload = async () => {
     // Rate limiting: 5 seconds
     const now = Date.now();

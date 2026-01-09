@@ -13,6 +13,7 @@
     "strictNullChecks": false
   },
   "files": [],
+  // References to specific config files for app (frontend) and node (backend/scripts)
   "references": [
     {
       "path": "./tsconfig.app.json"
