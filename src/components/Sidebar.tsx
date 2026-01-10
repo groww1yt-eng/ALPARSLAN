@@ -30,7 +30,7 @@ import { useSessionLock } from '@/hooks/useSessionLock';
  * - Status Overview: Displays current download default settings (Mode, Quality/Format).
  */
 export function Sidebar() {
-  const { sidebarOpen, setSidebarOpen, addNotification } = useUIStore();
+  const { sidebarOpen, setSidebarOpen, addNotification, theme } = useUIStore();
   const { settings, resetSettings } = useSettingsStore();
   const { isLocked, showLockedMessage } = useSessionLock();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -83,12 +83,14 @@ export function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
-              <Download className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src={theme === 'dark' ? '/logo_dark.png' : '/logo_light.png'}
+              alt="Logo"
+              className="w-10 h-10 object-contain"
+            />
             <div>
-              <h1 className="font-bold text-lg text-sidebar-foreground">ALP</h1>
-              <p className="text-xs text-sidebar-foreground/60">Video Downloader</p>
+              <h1 className="font-bold text-lg text-sidebar-foreground">ALPARSLAN</h1>
+              <p className="text-xs text-sidebar-foreground/60">Download Video + Audio</p>
             </div>
           </div>
           <button
