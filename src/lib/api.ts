@@ -118,7 +118,7 @@ export async function getEstimatedFileSize(
       try {
         const errorData = await response.json();
         console.warn("Estimation failed:", errorData.error);
-      } catch { }
+      } catch (e) { void e; }
       return { fileSize: 0 };
     }
 

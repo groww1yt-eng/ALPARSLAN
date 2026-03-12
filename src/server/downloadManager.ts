@@ -92,7 +92,7 @@ export function getDownloadProgress(jobId: string): DownloadProgress | null {
   }
 
   // Create a copy of progress for response to avoid mutation issues
-  const progressCopy: DownloadProgress & { result?: any } = { ...download.progress };
+  const progressCopy: DownloadProgress & { result?: { filePath: string; fileName: string; fileSize: string; } } = { ...download.progress };
 
   // Include result if available
   if (download.result) {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUIStore } from '@/store/useUIStore';
+import type { Notification } from '@/types';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +20,7 @@ const colorMap = {
 
 
 interface ToastItemProps {
-  notification: any;
+  notification: Notification;
   removeNotification: (id: string) => void;
 }
 

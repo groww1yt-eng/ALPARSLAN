@@ -42,7 +42,7 @@ export const useUIStore = create<UIState>()(
         {
             name: 'alp-ui-storage',
             // Only persist specific fields (theme), do not persist notifications or sidebar state
-            partialize: (state) => ({ theme: state.theme } as any),
+            partialize: (state) => ({ theme: state.theme } as unknown as UIState),
         }
     )
 );

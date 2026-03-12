@@ -23,6 +23,7 @@ export function useSessionLock() {
         const interval = setInterval(syncLockState, 2000);
 
         return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const syncLockState = async () => {

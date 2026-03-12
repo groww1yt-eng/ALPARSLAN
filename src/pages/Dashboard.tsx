@@ -67,9 +67,10 @@ export default function Dashboard() {
 
   // Cleanup intervals on unmount
   useEffect(() => {
+    const intervals = activeIntervals.current;
     return () => {
-      activeIntervals.current.forEach(interval => clearInterval(interval));
-      activeIntervals.current.clear();
+      intervals.forEach(interval => clearInterval(interval));
+      intervals.clear();
     };
   }, []);
 
@@ -116,6 +117,7 @@ export default function Dashboard() {
     };
 
     syncDownloads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Poll progress for a specific job
@@ -155,7 +157,7 @@ export default function Dashboard() {
         const eta = `${etaMinutes}:${etaSecs.toString().padStart(2, '0')}`;
 
         updateJob(jobId, {
-          status: progress.status as any, // Sync status (downloading, paused, etc)
+          status: progress.status as 'downloading' | 'paused' | 'completed' | 'failed' | 'canceled', // Sync status
           progress: isNaN(progress.percentage) ? 0 : Math.min(100, progress.percentage),
           fileSize: displayFileSize,
           downloadedSize,

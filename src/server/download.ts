@@ -43,7 +43,7 @@ export interface DownloadOptions {
 // This runs yt-dlp with --skip-download and -j (JSON) to get metadata
 export async function getFileSize(url: string, mode: 'video' | 'audio', quality: string = '1080p', playlistItems?: string): Promise<number> {
   try {
-    let ytdlpArgs: string[] = ['-j'];
+    const ytdlpArgs: string[] = ['-j'];
 
     if (playlistItems) {
       ytdlpArgs.push('--playlist-items', playlistItems);
@@ -89,13 +89,14 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     try {
       // Increase maxBuffer to handle large JSON outputs for playlists
       output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If yt-dlp exits with error (e.g. private video), it might still have output valid JSON for others
-      if (error.stdout) {
+      const execError = error as { stdout?: Buffer | string, message?: string };
+      if (execError.stdout) {
         console.warn('yt-dlp exited with error but returned stdout (likely private videos), continuing parsing...');
-        output = error.stdout.toString();
+        output = execError.stdout.toString();
       } else {
-        console.error('Error getting file size (no stdout):', error.message);
+        console.error('Error getting file size (no stdout):', execError.message || 'Unknown error');
         return 0;
       }
     }
@@ -197,7 +198,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
   }
 
   return new Promise((resolve, reject) => {
-    let ytdlpArgs: string[] = [];
+    const ytdlpArgs: string[] = [];
 
     if (mode === 'audio') {
       ytdlpArgs.push('-x'); // Extract audio
@@ -258,7 +259,6 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     }
 
     let stdoutBuffer = '';
-    let stderrBuffer = '';
 
     // Function to parse stdout lines and update progress
     const processOutput = (data: string, isError: boolean) => {

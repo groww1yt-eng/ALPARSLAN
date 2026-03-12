@@ -12,7 +12,7 @@ export interface HandleAppErrorOptions {
 }
 
 // Parse error and return a user-friendly message based on known patterns
-function getFriendlyErrorMessage(error: any, defaultMessage: string): string {
+function getFriendlyErrorMessage(error: unknown, defaultMessage: string): string {
   const rawMessage = error instanceof Error ? error.message : String(error);
   // If rawMessage is the JSON stringified error, simpler message is better?
   // Actually, let's just inspect the string content.

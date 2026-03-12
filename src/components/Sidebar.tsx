@@ -13,7 +13,9 @@ import {
   ShieldCheck,
   Video,
   Music,
-  Folder
+  Folder,
+  HelpCircle,
+  Info
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionLock } from '@/hooks/useSessionLock';
@@ -37,11 +39,13 @@ export function Sidebar() {
   const location = useLocation();
 
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/active', label: 'Active Jobs', icon: Download },
     { path: '/history', label: 'History', icon: History },
-    { path: '/compatibility', label: 'Compatibility', icon: ShieldCheck }, // Using RotateCcw as generic icon or maybe Activity/Info? Let's use RotateCcw strictly as requested or just as placeholder. Wait, RefreshCw is good for updates. Let's inspect lucide imports.
+    { path: '/compatibility', label: 'Compatibility', icon: ShieldCheck }, 
     { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/help', label: 'Help', icon: HelpCircle },
+    { path: '/about', label: 'About', icon: Info },
   ];
 
   const handleResetDefaults = () => {

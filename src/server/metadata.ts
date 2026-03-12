@@ -76,6 +76,7 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
 }
 
 // Convert yt-dlp JSON output to internal VideoMetadata format
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseVideoMetadata(info: any): VideoMetadata {
   const duration = info.duration || 0;
   const durationMinutes = Math.floor(duration / 60);
@@ -94,13 +95,16 @@ function parseVideoMetadata(info: any): VideoMetadata {
 }
 
 // Convert yt-dlp playlist JSON output to internal VideoMetadata format
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parsePlaylistMetadata(info: any, entries: any[] = []): VideoMetadata {
   // If entries passed separately (from NDJSON lines), use them; otherwise use info.entries if bundled
   const videoEntries = entries.length > 0 ? entries : (info.entries || []);
 
   // Filter out the playlist metadata entry itself and process valid video entries
   const videos: PlaylistVideo[] = videoEntries
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter((entry: any) => entry.id && entry.title) // Ensure it's a valid video entry
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .map((entry: any, index: number) => {
       const duration = entry.duration || 0;
       const durationMinutes = Math.floor(duration / 60);

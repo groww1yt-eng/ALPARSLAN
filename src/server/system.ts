@@ -103,9 +103,10 @@ async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partia
         const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
         await execAsync(`python -m yt_dlp ${cookieFlag} --dump-json --no-warnings --flat-playlist "https://www.youtube.com/watch?v=jNQXAC9IVRw"`);
         return { status: 'compatible', message: 'Compatible with current YouTube behavior' };
-    } catch (e: any) {
-        console.error('Extractor check failed:', e.message);
-        const msg = e.message?.toLowerCase() || '';
+    } catch (e: unknown) {
+        const error = e as Error;
+        console.error('Extractor check failed:', error.message);
+        const msg = error.message?.toLowerCase() || '';
         if (msg.includes('sign in') || msg.includes('robot') || msg.includes('consent')) {
             return { status: 'partial', message: 'Partial compatibility - YouTube might be blocking automated requests or requiring sign-in' };
         }
@@ -157,8 +158,9 @@ async function checkIpReputation(): Promise<{ status: 'clean' | 'blocked' | 'thr
         if (res.status === 429) return { status: 'throttled', message: 'IP is being rate-limited (429 Too Many Requests)' };
         if (res.ok) return { status: 'clean', message: 'IP connectivity is healthy' };
         return { status: 'unknown', message: `Server returned status ${res.status}` };
-    } catch (e: any) {
-        return { status: 'unknown', message: e.message || 'Connectivity check failed' };
+    } catch (e: unknown) {
+        const error = e as Error;
+        return { status: 'unknown', message: error.message || 'Connectivity check failed' };
     }
 }
 
@@ -266,7 +268,7 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
             // Check min version (lexicographical comparison usually sufficient for YYYY.MM.DD)
             info.requirements.ytdlp.meetsRequirement = ytdlpVersion >= MIN_YTDLP_VERSION;
         }
-    } catch (e) { }
+    } catch (e) { void e; }
 
     // Check ffmpeg presence and version
     try {
@@ -278,7 +280,7 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
             info.versions.ffmpeg = match ? match[1] : firstLine;
             info.health.ffmpeg = true;
         }
-    } catch (e) { }
+    } catch (e) { void e; }
 
     // Check Internet Connectivity
     try {
@@ -289,7 +291,7 @@ export async function getSystemInfo(outputPath?: string): Promise<SystemInfo> {
         try {
             await dnsResolve('8.8.8.8'); // Cloudflare
             info.health.internet = true;
-        } catch (e2) { }
+        } catch (e2) { void e2; }
     }
 
     // Check Extractor Status (Only if internet and ytdlp present)

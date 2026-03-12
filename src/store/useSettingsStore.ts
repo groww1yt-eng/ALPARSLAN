@@ -58,9 +58,10 @@ export const useSettingsStore = create<SettingsState>()(
         {
             name: 'alp-settings-storage', // LocalStorage persistence
             // Migration handling for schema changes
-            migrate: (persistedState: any, version: number) => {
-                if (persistedState && persistedState.settings && !persistedState.settings.namingTemplates) {
-                    persistedState.settings.namingTemplates = defaultSettings.namingTemplates;
+            migrate: (persistedState: unknown, version: number) => {
+                const state = persistedState as { settings?: AppSettings };
+                if (state && state.settings && !state.settings.namingTemplates) {
+                    state.settings.namingTemplates = defaultSettings.namingTemplates;
                 }
                 return persistedState as SettingsState;
             },

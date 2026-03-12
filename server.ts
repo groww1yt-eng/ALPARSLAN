@@ -116,8 +116,9 @@ app.post('/api/metadata', async (req: Request, res: Response) => {
       const sanitizedUrl = validateAndSanitizeUrl(url);
       const metadata = await getVideoMetadata(sanitizedUrl); // Use sanitized URL
       res.json(metadata);
-    } catch (e: any) {
-      res.status(400).json({ error: e.message || 'Invalid or malicious URL' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Invalid or malicious URL';
+      res.status(400).json({ error: errorMessage || 'Invalid or malicious URL' });
       return;
     }
   } catch (error) {
@@ -143,8 +144,9 @@ app.post('/api/filesize', async (req: Request, res: Response) => {
       const sanitizedUrl = validateAndSanitizeUrl(url);
       // Get raw file size from yt-dlp (possibly with range/selection)
       fileSize = await getFileSize(sanitizedUrl, mode, quality, playlistItems);
-    } catch (e: any) {
-      res.status(400).json({ error: e.message || 'Invalid URL' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Invalid URL';
+      res.status(400).json({ error: errorMessage || 'Invalid URL' });
       return;
     }
 
@@ -206,8 +208,9 @@ app.post('/api/download', async (req: Request, res: Response) => {
     let sanitizedUrl = url;
     try {
       sanitizedUrl = validateAndSanitizeUrl(url);
-    } catch (e: any) {
-      res.status(400).json({ error: e.message || 'Invalid URL' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Invalid URL';
+      res.status(400).json({ error: errorMessage || 'Invalid URL' });
       return;
     }
 
@@ -398,7 +401,7 @@ setInterval(() => {
 }, 30000);
 
 // Error Handling & Logging
-server.on('error', (error: any) => {
+server.on('error', (error: NodeJS.ErrnoException) => {
   console.error('[SERVER ERROR]', error.code, error.message);
 });
 

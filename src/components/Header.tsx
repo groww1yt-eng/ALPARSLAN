@@ -10,6 +10,8 @@ const pageTitles: Record<string, string> = {
   '/history': 'History',
   '/settings': 'Settings',
   '/compatibility': 'Compatibility',
+  '/about': 'About',
+  '/help': 'Help & Support',
 };
 
 /**

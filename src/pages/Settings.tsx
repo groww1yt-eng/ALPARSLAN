@@ -141,7 +141,7 @@ export default function Settings() {
               onValueChange={(value) => {
                 setDraftSettings(prev => ({
                   ...prev,
-                  defaultMode: value as any
+                  defaultMode: value as DownloadMode
                 }))
                 setHasChanges(true);
               }}
