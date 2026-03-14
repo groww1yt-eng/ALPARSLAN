@@ -87,10 +87,10 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
 
     // Aggressive anti-bot detection bypass strategy:
     // 1. Force IPv4 to bypass blocked IPv6 ranges
-    // 2. Prune 'web' client
+    // 2. Use tv,mweb,web clients which bypass BotGuard rules
     // 3. Realistic User-Agent
     // 4. Inject PO Token and Visitor Data if provided
-    let extractorArgs = 'youtube:player_client=android,ios';
+    let extractorArgs = 'youtube:player_client=tv,mweb,web';
     if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
       extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
     }
@@ -277,7 +277,7 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     }
 
     // Aggressive anti-bot detection bypass strategy
-    let extractorArgs = 'youtube:player_client=android,ios';
+    let extractorArgs = 'youtube:player_client=tv,mweb,web';
     if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
       extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
     }

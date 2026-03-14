@@ -59,10 +59,10 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
 
     // Aggressive anti-bot detection bypass strategy:
     // 1. Force IPv4 to bypass blocked IPv6 ranges common on VPS/Render
-    // 2. Use android/ios clients only (web is easily detected on datacenter IPs)
+    // 2. Use tv,mweb,web clients which bypass BotGuard rules on datacenter IPs
     // 3. Set a realistic browser User-Agent
     // 4. Inject PO Token and Visitor Data if available from environment
-    let extractorArgs = 'youtube:player_client=android,ios';
+    let extractorArgs = 'youtube:player_client=tv,mweb,web';
     
     if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
       console.log(`[DEBUG] Injecting PO Token and Visitor Data into yt-dlp command`);
