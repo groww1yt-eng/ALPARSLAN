@@ -39,7 +39,10 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
     const cookiePath = 'cookies.txt';
     const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
-    const command = `"${pythonCmd}" -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} "${url.replace(/"/g, '\\"')}"`;
+    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
+    const antiBotFlags = '--extractor-args "youtube:player_client=android,ios,web"';
+
+    const command = `"${pythonCmd}" -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
     // Execute yt-dlp command synchronously to pull metadata
     const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
 

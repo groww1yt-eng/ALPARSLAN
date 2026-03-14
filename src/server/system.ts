@@ -101,7 +101,8 @@ async function checkYoutubeExtractor(): Promise<{ status: 'compatible' | 'partia
         // Using --flat-playlist and --dump-json is fast and creates minimal network load
         const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
         const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
-        await execAsync(`python -m yt_dlp ${cookieFlag} --dump-json --no-warnings --flat-playlist "https://www.youtube.com/watch?v=jNQXAC9IVRw"`);
+        const antiBotFlags = '--extractor-args "youtube:player_client=android,ios,web"';
+        await execAsync(`python -m yt_dlp ${cookieFlag} ${antiBotFlags} --dump-json --no-warnings --flat-playlist "https://www.youtube.com/watch?v=jNQXAC9IVRw"`);
         return { status: 'compatible', message: 'Compatible with current YouTube behavior' };
     } catch (e: unknown) {
         const error = e as Error;

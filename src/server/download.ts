@@ -82,6 +82,9 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
       ytdlpArgs.push('--cookies', cookiePath);
     }
 
+    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web');
+
     // execute synchronously
     const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
 
@@ -246,6 +249,9 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     if (fs.existsSync(cookiePath)) {
       ytdlpArgs.push('--cookies', cookiePath);
     }
+
+    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web');
 
     console.log(`Starting download (spawn): ${url}`);
     console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);
