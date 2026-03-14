@@ -89,8 +89,14 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     // 1. Force IPv4 to bypass blocked IPv6 ranges
     // 2. Prune 'web' client
     // 3. Realistic User-Agent
+    // 4. Inject PO Token and Visitor Data if provided
+    let extractorArgs = 'youtube:player_client=android,ios';
+    if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
+      extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
+    }
+
     ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios');
+    ytdlpArgs.push('--extractor-args', extractorArgs);
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     // Attempt to locate python executable (custom venv or system)
@@ -271,8 +277,13 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     }
 
     // Aggressive anti-bot detection bypass strategy
+    let extractorArgs = 'youtube:player_client=android,ios';
+    if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
+      extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
+    }
+
     ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios');
+    ytdlpArgs.push('--extractor-args', extractorArgs);
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     console.log(`Starting download (spawn): ${url}`);

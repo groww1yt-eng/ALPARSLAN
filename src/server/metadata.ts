@@ -61,7 +61,17 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
     // 1. Force IPv4 to bypass blocked IPv6 ranges common on VPS/Render
     // 2. Use android/ios clients only (web is easily detected on datacenter IPs)
     // 3. Set a realistic browser User-Agent
-    const antiBotFlags = '--force-ipv4 --no-check-certificate --extractor-args "youtube:player_client=android,ios" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"';
+    // 4. Inject PO Token and Visitor Data if available from environment
+    let extractorArgs = 'youtube:player_client=android,ios';
+    
+    if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
+      console.log(`[DEBUG] Injecting PO Token and Visitor Data into yt-dlp command`);
+      extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
+    } else if (process.env.YOUTUBE_PO_TOKEN || process.env.VISITOR_DATA) {
+      console.warn(`[DEBUG] WARNING: Both YOUTUBE_PO_TOKEN and VISITOR_DATA must be provided together. One is missing.`);
+    }
+
+    const antiBotFlags = `--force-ipv4 --no-check-certificate --extractor-args "${extractorArgs}" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"`;
 
     const command = `${pythonCmd} -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
     // Execute yt-dlp command synchronously to pull metadata

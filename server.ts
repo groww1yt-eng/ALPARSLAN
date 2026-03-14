@@ -422,6 +422,10 @@ app.get('/api/debug-server-info', async (_req: Request, res: Response) => {
         size: cookieSize,
         preview: cookiePreview
       },
+      poTokenInfo: {
+        hasPoToken: !!process.env.YOUTUBE_PO_TOKEN,
+        hasVisitorData: !!process.env.VISITOR_DATA
+      },
       envKeys: envKeys,
       ytDlpVersion: execSync('python -m yt_dlp --version', { encoding: 'utf-8' }).trim()
     });
