@@ -59,23 +59,14 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
     if (isPlaylistUrl) ytdlpArgs.push('--flat-playlist');
     if (cookieExists) ytdlpArgs.push('--cookies', cookiePath);
 
-    // Aggressive anti-bot detection bypass strategy:
-    // 1. Force IPv4 to bypass blocked IPv6 ranges common on VPS/Render
-    // 2. Use tv,mweb,web clients which bypass BotGuard rules on datacenter IPs
-    // 3. Set a realistic browser User-Agent
-    // 4. Inject PO Token and Visitor Data if available from environment
-    let extractorArgs = 'youtube:player_client=tv,mweb,web';
-    
-    if (process.env.YOUTUBE_PO_TOKEN && process.env.VISITOR_DATA) {
-      console.log(`[DEBUG] Injecting PO Token and Visitor Data into yt-dlp command`);
-      extractorArgs += `;youtube:po_token=${process.env.YOUTUBE_PO_TOKEN};youtube:visitor_data=${process.env.VISITOR_DATA}`;
-    } else if (process.env.YOUTUBE_PO_TOKEN || process.env.VISITOR_DATA) {
-      console.warn(`[DEBUG] WARNING: Both YOUTUBE_PO_TOKEN and VISITOR_DATA must be provided together. One is missing.`);
-    }
+    // Core network resilience flags
+    ytdlpArgs.push('--force-ipv4');
+    ytdlpArgs.push('--no-check-certificate');
+    ytdlpArgs.push('--geo-bypass');
 
-    ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
-    ytdlpArgs.push('--extractor-args', extractorArgs);
+    // Basic User-Agent spoofing to avoid default python-requests blocking
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+    
     ytdlpArgs.push(url);
 
     console.log(`[DEBUG] Executing yt-dlp to fetch metadata for ${url}`);
