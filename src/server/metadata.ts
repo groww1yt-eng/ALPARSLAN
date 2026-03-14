@@ -39,12 +39,29 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
 
     // Check for cookies file to authenticate if present
     const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
-    const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+    const cookieExists = fs.existsSync(cookiePath);
+    
+    // Debug logging for production troubleshooting
+    if (cookieExists) {
+      const stats = fs.statSync(cookiePath);
+      console.log(`[DEBUG] Found cookies.txt at ${cookiePath} (${stats.size} bytes)`);
+      try {
+        const firstLine = fs.readFileSync(cookiePath, 'utf8').split('\n')[0];
+        console.log(`[DEBUG] Cookie file header: ${firstLine.substring(0, 30)}...`);
+      } catch (err) {
+        console.error('[DEBUG] Failed to read cookie file for verification:', err);
+      }
+    } else {
+      console.warn(`[DEBUG] cookies.txt NOT FOUND at ${cookiePath}`);
+    }
 
-    // Anti-bot detection bypass strategy:
-    // 1. Use multiple player clients (ios and web_creator are currently effective)
-    // 2. Set a realistic browser User-Agent
-    const antiBotFlags = '--extractor-args "youtube:player_client=android,ios,web,web_creator" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"';
+    const cookieFlag = cookieExists ? `--cookies "${cookiePath}"` : '';
+
+    // Aggressive anti-bot detection bypass strategy:
+    // 1. Force IPv4 to bypass blocked IPv6 ranges common on VPS/Render
+    // 2. Use android/ios clients only (web is easily detected on datacenter IPs)
+    // 3. Set a realistic browser User-Agent
+    const antiBotFlags = '--force-ipv4 --no-check-certificate --extractor-args "youtube:player_client=android,ios" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"';
 
     const command = `${pythonCmd} -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
     // Execute yt-dlp command synchronously to pull metadata

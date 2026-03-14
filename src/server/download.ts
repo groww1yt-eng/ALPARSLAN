@@ -78,14 +78,19 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
 
     // Check for cookies file to support age-restricted content
     const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
-    if (fs.existsSync(cookiePath)) {
+    const cookieExists = fs.existsSync(cookiePath);
+    
+    if (cookieExists) {
       ytdlpArgs.push('--cookies', cookiePath);
+      console.log(`[DEBUG] Using cookies.txt for size calculation (${fs.statSync(cookiePath).size} bytes)`);
     }
 
-    // Anti-bot detection bypass strategy:
-    // 1. Use multiple player clients (ios and web_creator are currently effective)
-    // 2. Set a realistic browser User-Agent
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web,web_creator');
+    // Aggressive anti-bot detection bypass strategy:
+    // 1. Force IPv4 to bypass blocked IPv6 ranges
+    // 2. Prune 'web' client
+    // 3. Realistic User-Agent
+    ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios');
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     // Attempt to locate python executable (custom venv or system)
@@ -258,14 +263,16 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
     // Cookies support
     const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
-    if (fs.existsSync(cookiePath)) {
+    const cookieExists = fs.existsSync(cookiePath);
+
+    if (cookieExists) {
       ytdlpArgs.push('--cookies', cookiePath);
+      console.log(`[DEBUG] Using cookies.txt for download (${fs.statSync(cookiePath).size} bytes)`);
     }
 
-    // Anti-bot detection bypass strategy:
-    // 1. Use multiple player clients (ios and web_creator are currently effective)
-    // 2. Set a realistic browser User-Agent
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web,web_creator');
+    // Aggressive anti-bot detection bypass strategy
+    ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios');
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     console.log(`Starting download (spawn): ${url}`);
