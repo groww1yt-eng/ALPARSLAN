@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import Documentation from "./pages/Documentation";
 import About from "./pages/About";
 import Help from "./pages/Help";
+import MasterGuide from "./pages/MasterGuide";
 import { useUIStore } from "@/store/useUIStore";
 
 // Initialize React Query client for data fetching
@@ -67,6 +68,7 @@ const App = () => {
               <Route path="/compatibility" element={<Compatibility />} />
               <Route path="/about" element={<About />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/guide" element={<MasterGuide />} />
             </Route>
             {/* Catch-all 404 Route */}
             <Route path="*" element={<NotFound />} />

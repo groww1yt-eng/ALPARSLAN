@@ -15,7 +15,10 @@ import {
   Music,
   Folder,
   HelpCircle,
-  Info
+  Info,
+  BookOpen,
+  ChevronRight,
+  MousePointer2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSessionLock } from '@/hooks/useSessionLock';
@@ -44,8 +47,8 @@ export function Sidebar() {
     { path: '/history', label: 'History', icon: History },
     { path: '/compatibility', label: 'Compatibility', icon: ShieldCheck }, 
     { path: '/settings', label: 'Settings', icon: Settings },
-    { path: '/help', label: 'Help', icon: HelpCircle },
-    { path: '/about', label: 'About', icon: Info },
+    { path: '/help', label: 'Help & Support', icon: HelpCircle },
+    { path: '/about', label: 'About ALPARSLAN', icon: Info },
   ];
 
   const handleResetDefaults = () => {
@@ -106,7 +109,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
           {navItems.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
@@ -123,6 +126,29 @@ export function Sidebar() {
               <span className="font-medium">{label}</span>
             </NavLink>
           ))}
+
+          {/* Master Guide Section (Simplified Link) */}
+          <div className="mt-8 px-2 pb-4">
+            <NavLink
+              to="/guide"
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                'flex items-center gap-3 px-4 py-4 rounded-2xl border border-divider/5 transition-all duration-300 group',
+                location.pathname === '/guide'
+                  ? 'bg-primary/10 text-primary border-primary/20 shadow-md shadow-primary/5'
+                  : 'bg-sidebar-accent/30 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+              )}
+            >
+              <div className="p-2 bg-sidebar-background rounded-lg group-hover:scale-110 transition-transform shadow-sm">
+                <BookOpen className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Getting Started</span>
+                <span className="text-[10px] opacity-60">Basics & Instructions</span>
+              </div>
+              <ChevronRight className="w-4 h-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity translate-x-1" />
+            </NavLink>
+          </div>
         </nav>
 
         {/* Current Defaults */}

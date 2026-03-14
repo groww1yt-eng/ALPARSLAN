@@ -6,12 +6,14 @@ import { ThemeToggle } from './ThemeToggle';
 
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
+  '/dashboard': 'Dashboard',
   '/active': 'Active Jobs',
   '/history': 'History',
   '/settings': 'Settings',
   '/compatibility': 'Compatibility',
   '/about': 'About',
   '/help': 'Help & Support',
+  '/guide': 'Getting Started',
 };
 
 /**
@@ -36,7 +38,7 @@ export function Header() {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold">{pageTitles[location.pathname] || 'Dashboard'}</h1>
+          <h1 className="text-xl font-bold">{pageTitles[location.pathname] ?? pageTitles['/']}</h1>
         </div>
 
         <div className="flex items-center gap-3">
