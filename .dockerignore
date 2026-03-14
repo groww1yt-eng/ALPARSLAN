@@ -1,0 +1,29 @@
+# git
+.git/
+.gitignore
+
+# node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# python
+.venv/
+__pycache__/
+
+# build outputs
+dist/
+dist-server/
+
+# env files (NEVER send local secrets to the production server)
+.env
+.env.*
+!.env.example
+
+# editors
+.vscode/
+.idea/
+.DS_Store
+
+# download paths (protect local test downloads)
+downloads/
