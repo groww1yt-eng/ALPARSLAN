@@ -40,7 +40,7 @@ if (process.env.YOUTUBE_COOKIES) {
     const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
     // Replace explicit '\n' strings with actual newlines in case the hosting environment escapes them
     const cookieContent = process.env.YOUTUBE_COOKIES.replace(/\\n/g, '\n');
-    fs.writeFileSync(cookiePath, cookieContent, 'utf-8');
+    fs.writeFileSync(cookiePath, cookieContent, { encoding: 'utf-8', mode: 0o600 });
     console.log('✓ Successfully injected YouTube cookies from environment variables');
   } catch (err) {
     console.error('Failed to write cookies.txt from environment variable:', err);

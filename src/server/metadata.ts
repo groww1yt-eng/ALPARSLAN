@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
+import path from 'path';
 import type { VideoMetadata, PlaylistVideo } from '../types/index.js';
 
 // Regex to validate typical YouTube URLs
@@ -22,27 +23,30 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
 
     // Attempt to locate python executable (custom venv or system)
     let pythonCmd = 'python';
-    try {
-      // Try using the virtual environment python first (specific to this project structure)
-      execSync('C:/Users/ariya/Downloads/ALPARSLAN/.venv/Scripts/python.exe -m yt_dlp --version', { encoding: 'utf-8' });
-      pythonCmd = 'C:/Users/ariya/Downloads/ALPARSLAN/.venv/Scripts/python.exe';
-    } catch {
-      // Fallback to system python
+    const isWindows = process.platform === 'win32';
+    
+    if (isWindows) {
       try {
-        execSync('python -m yt_dlp --version', { encoding: 'utf-8' });
+        // Try using the virtual environment python first (specific to this project structure)
+        const venvPath = path.resolve(process.cwd(), '.venv/Scripts/python.exe');
+        if (fs.existsSync(venvPath)) {
+          pythonCmd = `"${venvPath}"`;
+        }
       } catch {
-        throw new Error('yt-dlp is not installed. Please run: pip install yt-dlp');
+        // Fallback to system python
       }
     }
 
     // Check for cookies file to authenticate if present
-    const cookiePath = 'cookies.txt';
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
     const cookieFlag = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
-    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
-    const antiBotFlags = '--extractor-args "youtube:player_client=android,ios,web"';
+    // Anti-bot detection bypass strategy:
+    // 1. Use multiple player clients (ios and web_creator are currently effective)
+    // 2. Set a realistic browser User-Agent
+    const antiBotFlags = '--extractor-args "youtube:player_client=android,ios,web,web_creator" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"';
 
-    const command = `"${pythonCmd}" -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
+    const command = `${pythonCmd} -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
     // Execute yt-dlp command synchronously to pull metadata
     const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
 

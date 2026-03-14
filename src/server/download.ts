@@ -77,16 +77,28 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     ytdlpArgs.push(url);
 
     // Check for cookies file to support age-restricted content
-    const cookiePath = 'cookies.txt';
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
     if (fs.existsSync(cookiePath)) {
       ytdlpArgs.push('--cookies', cookiePath);
     }
 
-    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web');
+    // Anti-bot detection bypass strategy:
+    // 1. Use multiple player clients (ios and web_creator are currently effective)
+    // 2. Set a realistic browser User-Agent
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web,web_creator');
+    ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
+    // Attempt to locate python executable (custom venv or system)
+    let pythonCmd = 'python';
+    if (process.platform === 'win32') {
+      const venvPath = path.resolve(process.cwd(), '.venv/Scripts/python.exe');
+      if (fs.existsSync(venvPath)) {
+        pythonCmd = `"${venvPath}"`;
+      }
+    }
 
     // execute synchronously
-    const command = `python -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
+    const command = `${pythonCmd} -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
 
     let output = '';
     try {
@@ -245,19 +257,31 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     ytdlpArgs.push(url);
 
     // Cookies support
-    const cookiePath = 'cookies.txt';
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
     if (fs.existsSync(cookiePath)) {
       ytdlpArgs.push('--cookies', cookiePath);
     }
 
-    // Anti-bot detection bypass using Android/iOS player clients (helps with datacenter IPs)
-    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web');
+    // Anti-bot detection bypass strategy:
+    // 1. Use multiple player clients (ios and web_creator are currently effective)
+    // 2. Set a realistic browser User-Agent
+    ytdlpArgs.push('--extractor-args', 'youtube:player_client=android,ios,web,web_creator');
+    ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     console.log(`Starting download (spawn): ${url}`);
     console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);
 
+    // Attempt to locate python executable (custom venv or system)
+    let pythonCmd = 'python';
+    if (process.platform === 'win32') {
+      const venvPath = path.resolve(process.cwd(), '.venv/Scripts/python.exe');
+      if (fs.existsSync(venvPath)) {
+        pythonCmd = venvPath; // spawn doesn't need quotes usually but we'll use the raw path
+      }
+    }
+
     // Spawn process (async execution)
-    const pythonProcess = spawn('python', ['-m', 'yt_dlp', ...ytdlpArgs]);
+    const pythonProcess = spawn(pythonCmd, ['-m', 'yt_dlp', ...ytdlpArgs]);
 
     if (jobId) {
       // Store process reference in manager for Pause/Cancel capabilities
