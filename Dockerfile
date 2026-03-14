@@ -5,16 +5,14 @@ FROM node:20-bookworm-slim
 WORKDIR /app
 
 # Install system dependencies:
-# - python3: required by yt-dlp
+# - python3 & python3-pip: required by yt-dlp python module
 # - ffmpeg: required for audio extraction/conversion and video merging
-# - curl: to download yt-dlp
 RUN apt-get update && \
-    apt-get install -y python3 ffmpeg curl && \
+    apt-get install -y python3 python3-pip ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
-# Download the latest yt-dlp binary directly from GitHub and make it executable
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
+# Install the latest yt-dlp via pip so it can be executed as a python module
+RUN pip3 install --break-system-packages yt-dlp
 
 # Copy package files first to leverage Docker's layer caching
 COPY package.json package-lock.json ./
