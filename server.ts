@@ -10,6 +10,7 @@
 //   - Build output is generated into ./dist-server via `npm run build:server`
 
 import express, { Request, Response } from 'express';
+import { execSync } from 'child_process';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -385,16 +386,47 @@ app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
-// GET /api/system-info
-// Fetch system specs (CPU, RAM, Disk)
-app.get('/api/system-info', async (req: Request, res: Response) => {
+// GET /api/debug-server-info
+// Temporary diagnostic endpoint to check environment and cookie status
+app.get('/api/debug-server-info', async (_req: Request, res: Response) => {
   try {
-    const outputPath = req.query.outputPath as string | undefined;
-    const info = await getSystemInfo(outputPath);
-    res.json(info);
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+    const cookieExists = fs.existsSync(cookiePath);
+    let cookiePreview = 'N/A';
+    let cookieSize = 0;
+
+    if (cookieExists) {
+      const stats = fs.statSync(cookiePath);
+      cookieSize = stats.size;
+      const content = fs.readFileSync(cookiePath, 'utf8');
+      cookiePreview = content.substring(0, 50).replace(/\n/g, '\\n') + '...';
+    }
+
+    // Capture basic environment info (exclude sensitive keys)
+    const envKeys = Object.keys(process.env).filter(key => 
+      !key.includes('SECRET') && 
+      !key.includes('KEY') && 
+      !key.includes('PASSWORD') &&
+      !key.includes('COOKIES')
+    );
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      platform: process.platform,
+      arch: process.arch,
+      cwd: process.cwd(),
+      nodeVersion: process.version,
+      cookieInfo: {
+        exists: cookieExists,
+        path: cookiePath,
+        size: cookieSize,
+        preview: cookiePreview
+      },
+      envKeys: envKeys,
+      ytDlpVersion: execSync('python -m yt_dlp --version', { encoding: 'utf-8' }).trim()
+    });
   } catch (error) {
-    console.error('Error fetching system info:', error);
-    res.status(500).json({ error: 'Failed to fetch system info' });
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
