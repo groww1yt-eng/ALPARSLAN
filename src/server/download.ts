@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process';
+import { spawnSync, spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import {
@@ -104,25 +104,26 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     if (process.platform === 'win32') {
       const venvPath = path.resolve(process.cwd(), '.venv/Scripts/python.exe');
       if (fs.existsSync(venvPath)) {
-        pythonCmd = `"${venvPath}"`;
+        pythonCmd = venvPath;
       }
     }
 
-    // execute synchronously
-    const command = `${pythonCmd} -m yt_dlp ${ytdlpArgs.map(arg => `"${arg}"`).join(' ')}`;
-
+    // execute synchronously using spawnSync to avoid shell quoting issues
     let output = '';
-    try {
-      // Increase maxBuffer to handle large JSON outputs for playlists
-      output = execSync(command, { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
-    } catch (error: unknown) {
-      // If yt-dlp exits with error (e.g. private video), it might still have output valid JSON for others
-      const execError = error as { stdout?: Buffer | string, message?: string };
-      if (execError.stdout) {
-        console.warn('yt-dlp exited with error but returned stdout (likely private videos), continuing parsing...');
-        output = execError.stdout.toString();
-      } else {
-        console.error('Error getting file size (no stdout):', execError.message || 'Unknown error');
+    const result = spawnSync(pythonCmd, ['-m', 'yt_dlp', ...ytdlpArgs], { encoding: 'utf-8', maxBuffer: 100 * 1024 * 1024 });
+
+    if (result.error) {
+      console.error('Error spawning yt-dlp for file size:', result.error);
+      return 0;
+    }
+
+    output = result.stdout || '';
+
+    // If yt-dlp exits with error (e.g. private video), it might still have output valid JSON for others in stdout
+    if (result.status !== 0) {
+      console.warn(`yt-dlp exited with code ${result.status} during size calculation. Continuing parsing stdout if available...`);
+      if (!output.trim()) {
+        console.error('Error getting file size (no stdout):', result.stderr || 'No stderr either');
         return 0;
       }
     }

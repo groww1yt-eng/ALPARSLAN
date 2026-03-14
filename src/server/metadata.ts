@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import type { VideoMetadata, PlaylistVideo } from '../types/index.js';
@@ -55,7 +55,9 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
       console.warn(`[DEBUG] cookies.txt NOT FOUND at ${cookiePath}`);
     }
 
-    const cookieFlag = cookieExists ? `--cookies "${cookiePath}"` : '';
+    const ytdlpArgs: string[] = ['-j', '--no-warnings'];
+    if (isPlaylistUrl) ytdlpArgs.push('--flat-playlist');
+    if (cookieExists) ytdlpArgs.push('--cookies', cookiePath);
 
     // Aggressive anti-bot detection bypass strategy:
     // 1. Force IPv4 to bypass blocked IPv6 ranges common on VPS/Render
@@ -71,11 +73,26 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
       console.warn(`[DEBUG] WARNING: Both YOUTUBE_PO_TOKEN and VISITOR_DATA must be provided together. One is missing.`);
     }
 
-    const antiBotFlags = `--force-ipv4 --no-check-certificate --extractor-args "${extractorArgs}" --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"`;
+    ytdlpArgs.push('--force-ipv4', '--no-check-certificate');
+    ytdlpArgs.push('--extractor-args', extractorArgs);
+    ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+    ytdlpArgs.push(url);
 
-    const command = `${pythonCmd} -m yt_dlp -j --no-warnings ${flatFlag} ${cookieFlag} ${antiBotFlags} "${url.replace(/"/g, '\\"')}"`;
-    // Execute yt-dlp command synchronously to pull metadata
-    const output = execSync(command, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
+    console.log(`[DEBUG] Executing yt-dlp to fetch metadata for ${url}`);
+    
+    // Execute yt-dlp command synchronously using spawnSync to avoid shell quoting issues
+    const result = spawnSync(pythonCmd, ['-m', 'yt_dlp', ...ytdlpArgs], { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    let output = result.stdout || '';
+
+    // If there's an error code and no standard output was produced, throw the stderr
+    if (result.status !== 0 && !output.trim()) {
+      throw new Error(`yt-dlp exited with code ${result.status}: ${result.stderr || 'No error output'}`);
+    }
 
     // For playlists, yt-dlp outputs NDJSON (newline-delimited JSON), so we split logic
     const lines = output.trim().split('\n').filter(line => line.trim());

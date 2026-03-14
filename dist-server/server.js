@@ -9,9 +9,11 @@
 //   - Express serves the built frontend from ./dist and also provides /api/* routes
 //   - Build output is generated into ./dist-server via `npm run build:server`
 import express from 'express';
+import { execSync } from 'child_process';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 // Internal modules for core functionality
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
@@ -20,12 +22,28 @@ import { getNamingTemplates, setNamingTemplates } from './src/server/settingsSto
 import { validateTemplate, resolveFilename, getCurrentDate } from './src/server/namingResolver.js';
 import { validateAndSanitizeUrl } from './src/server/validation.js';
 import { API_VERSION } from './src/server/config.js';
-import { getSystemInfo } from './src/server/system.js';
 // Setup directory paths (ES modules work-around)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 // Set server port from environment or default to 3001
 const PORT = parseInt(process.env.PORT || '3001', 10);
+// -- Security Setup --
+// If running in production (e.g. Render) and the YOUTUBE_COOKIES environment variable is provided,
+// write it securely to a temporary file for yt-dlp to use to bypass bot detection.
+if (process.env.YOUTUBE_COOKIES) {
+    try {
+        const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+        // Replace explicit '\n' strings with actual newlines in case the hosting environment escapes them
+        const cookieContent = process.env.YOUTUBE_COOKIES.replace(/\\n/g, '\n');
+        fs.writeFileSync(cookiePath, cookieContent, { encoding: 'utf-8', mode: 0o600 });
+        const stats = fs.statSync(cookiePath);
+        console.log(`✓ Successfully injected YouTube cookies from environment variables`);
+        console.log(`[DEBUG] cookies.txt size: ${stats.size} bytes at ${cookiePath}`);
+    }
+    catch (err) {
+        console.error('Failed to write cookies.txt from environment variable:', err);
+    }
+}
 // -- Middleware --
 app.use(cors()); // Enable Cross-Origin Resource Sharing
 app.use(express.json()); // Parse incoming JSON request bodies
@@ -102,7 +120,8 @@ app.post('/api/metadata', async (req, res) => {
             res.json(metadata);
         }
         catch (e) {
-            res.status(400).json({ error: e.message || 'Invalid or malicious URL' });
+            const errorMessage = e instanceof Error ? e.message : 'Invalid or malicious URL';
+            res.status(400).json({ error: errorMessage || 'Invalid or malicious URL' });
             return;
         }
     }
@@ -128,7 +147,8 @@ app.post('/api/filesize', async (req, res) => {
             fileSize = await getFileSize(sanitizedUrl, mode, quality, playlistItems);
         }
         catch (e) {
-            res.status(400).json({ error: e.message || 'Invalid URL' });
+            const errorMessage = e instanceof Error ? e.message : 'Invalid URL';
+            res.status(400).json({ error: errorMessage || 'Invalid URL' });
             return;
         }
         // For audio mode, apply format-based multipliers (estimated overhead)
@@ -185,7 +205,8 @@ app.post('/api/download', async (req, res) => {
             sanitizedUrl = validateAndSanitizeUrl(url);
         }
         catch (e) {
-            res.status(400).json({ error: e.message || 'Invalid URL' });
+            const errorMessage = e instanceof Error ? e.message : 'Invalid URL';
+            res.status(400).json({ error: errorMessage || 'Invalid URL' });
             return;
         }
         // -- Naming Logic --
@@ -320,17 +341,47 @@ app.post('/api/download/cancel/:jobId', (req, res) => {
     }
     res.json({ success: true });
 });
-// GET /api/system-info
-// Fetch system specs (CPU, RAM, Disk)
-app.get('/api/system-info', async (req, res) => {
+// GET /api/debug-server-info
+// Temporary diagnostic endpoint to check environment and cookie status
+app.get('/api/debug-server-info', async (_req, res) => {
     try {
-        const outputPath = req.query.outputPath;
-        const info = await getSystemInfo(outputPath);
-        res.json(info);
+        const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+        const cookieExists = fs.existsSync(cookiePath);
+        let cookiePreview = 'N/A';
+        let cookieSize = 0;
+        if (cookieExists) {
+            const stats = fs.statSync(cookiePath);
+            cookieSize = stats.size;
+            const content = fs.readFileSync(cookiePath, 'utf8');
+            cookiePreview = content.substring(0, 50).replace(/\n/g, '\\n') + '...';
+        }
+        // Capture basic environment info (exclude sensitive keys)
+        const envKeys = Object.keys(process.env).filter(key => !key.includes('SECRET') &&
+            !key.includes('KEY') &&
+            !key.includes('PASSWORD') &&
+            !key.includes('COOKIES'));
+        res.json({
+            timestamp: new Date().toISOString(),
+            platform: process.platform,
+            arch: process.arch,
+            cwd: process.cwd(),
+            nodeVersion: process.version,
+            cookieInfo: {
+                exists: cookieExists,
+                path: cookiePath,
+                size: cookieSize,
+                preview: cookiePreview
+            },
+            poTokenInfo: {
+                hasPoToken: !!process.env.YOUTUBE_PO_TOKEN,
+                hasVisitorData: !!process.env.VISITOR_DATA
+            },
+            envKeys: envKeys,
+            ytDlpVersion: execSync('python -m yt_dlp --version', { encoding: 'utf-8' }).trim()
+        });
     }
     catch (error) {
-        console.error('Error fetching system info:', error);
-        res.status(500).json({ error: 'Failed to fetch system info' });
+        res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
 });
 // SPA Fallback
