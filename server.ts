@@ -13,6 +13,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 // Internal modules for core functionality
 import { getVideoMetadata } from './src/server/metadata.js';
 import { downloadVideo, getFileSize } from './src/server/download.js';
@@ -30,6 +31,21 @@ const app = express();
 
 // Set server port from environment or default to 3001
 const PORT = parseInt(process.env.PORT || '3001', 10);
+
+// -- Security Setup --
+// If running in production (e.g. Render) and the YOUTUBE_COOKIES environment variable is provided,
+// write it securely to a temporary file for yt-dlp to use to bypass bot detection.
+if (process.env.YOUTUBE_COOKIES) {
+  try {
+    const cookiePath = path.resolve(process.cwd(), 'cookies.txt');
+    // Replace explicit '\n' strings with actual newlines in case the hosting environment escapes them
+    const cookieContent = process.env.YOUTUBE_COOKIES.replace(/\\n/g, '\n');
+    fs.writeFileSync(cookiePath, cookieContent, 'utf-8');
+    console.log('✓ Successfully injected YouTube cookies from environment variables');
+  } catch (err) {
+    console.error('Failed to write cookies.txt from environment variable:', err);
+  }
+}
 
 // -- Middleware --
 app.use(cors()); // Enable Cross-Origin Resource Sharing
