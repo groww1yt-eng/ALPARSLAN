@@ -30,7 +30,7 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
         // Try using the virtual environment python first (specific to this project structure)
         const venvPath = path.resolve(process.cwd(), '.venv/Scripts/python.exe');
         if (fs.existsSync(venvPath)) {
-          pythonCmd = `"${venvPath}"`;
+          pythonCmd = venvPath;
         }
       } catch {
         // Fallback to system python
