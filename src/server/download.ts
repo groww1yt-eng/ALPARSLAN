@@ -91,12 +91,14 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     // Basic User-Agent spoofing to avoid default python-requests blocking
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
-    // Inject PO Token and Visitor Data if in env (crucial for live server bypass)
-    const rawPoToken = process.env.YOUTUBE_PO_TOKEN;
-    const rawVisitorData = process.env.VISITOR_DATA;
-    
-    const poToken = rawPoToken ? decodeURIComponent(rawPoToken) : null;
-    const visitorData = rawVisitorData ? decodeURIComponent(rawVisitorData) : null;
+    // Safe decoding helper
+    const safeDecode = (val: string | undefined) => {
+      if (!val) return null;
+      try { return decodeURIComponent(val); } catch (e) { return val; }
+    };
+
+    const poToken = safeDecode(process.env.YOUTUBE_PO_TOKEN);
+    const visitorData = safeDecode(process.env.VISITOR_DATA);
 
     if (poToken || visitorData) {
       let extArgs = 'youtube:player_client=ios,android,web';

@@ -386,6 +386,19 @@ app.post('/api/download/cancel/:jobId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// GET /api/system-info
+// Comprehensive diagnostic info for the Compatibility page
+app.get('/api/system-info', async (req: Request, res: Response) => {
+  try {
+    const { outputPath } = req.query;
+    const info = await getSystemInfo(outputPath as string);
+    res.json(info);
+  } catch (error) {
+    console.error('Error in /api/system-info:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Internal Server Error' });
+  }
+});
+
 // GET /api/debug-server-info
 // Temporary diagnostic endpoint to check environment and cookie status
 app.get('/api/debug-server-info', async (_req: Request, res: Response) => {
@@ -410,6 +423,16 @@ app.get('/api/debug-server-info', async (_req: Request, res: Response) => {
       !key.includes('COOKIES')
     );
 
+    // Safe decoding helper
+    const safeDecode = (val: string | undefined) => {
+      if (!val) return null;
+      try {
+        return decodeURIComponent(val);
+      } catch (e) {
+        return val; // Fallback to raw if malformed
+      }
+    };
+
     res.json({
       timestamp: new Date().toISOString(),
       platform: process.platform,
@@ -424,7 +447,9 @@ app.get('/api/debug-server-info', async (_req: Request, res: Response) => {
       },
       poTokenInfo: {
         hasPoToken: !!process.env.YOUTUBE_PO_TOKEN,
-        hasVisitorData: !!process.env.VISITOR_DATA
+        hasVisitorData: !!process.env.VISITOR_DATA,
+        poToken: safeDecode(process.env.YOUTUBE_PO_TOKEN),
+        visitorData: safeDecode(process.env.VISITOR_DATA)
       },
       envKeys: envKeys,
       ytDlpVersion: execSync('python -m yt_dlp --version', { encoding: 'utf-8' }).trim()
