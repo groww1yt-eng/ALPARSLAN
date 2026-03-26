@@ -91,6 +91,16 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     // Basic User-Agent spoofing to avoid default python-requests blocking
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
+    // Inject PO Token and Visitor Data if in env (crucial for live server bypass)
+    const poToken = process.env.YOUTUBE_PO_TOKEN;
+    const visitorData = process.env.VISITOR_DATA;
+    if (poToken || visitorData) {
+      let extArgs = 'youtube:player_client=web,android,ios';
+      if (poToken) extArgs += `;po_token=${poToken}`;
+      if (visitorData) extArgs += `;visitor_data=${visitorData}`;
+      ytdlpArgs.push('--extractor-args', extArgs);
+    }
+
     // Attempt to locate python executable (custom venv or system)
     let pythonCmd = 'python';
     if (process.platform === 'win32') {
@@ -274,6 +284,16 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
 
     // Basic User-Agent spoofing
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
+    // Inject PO Token and Visitor Data if in env (crucial for live server bypass)
+    const poToken = process.env.YOUTUBE_PO_TOKEN;
+    const visitorData = process.env.VISITOR_DATA;
+    if (poToken || visitorData) {
+      let extArgs = 'youtube:player_client=web,android,ios';
+      if (poToken) extArgs += `;po_token=${poToken}`;
+      if (visitorData) extArgs += `;visitor_data=${visitorData}`;
+      ytdlpArgs.push('--extractor-args', extArgs);
+    }
 
     console.log(`Starting download (spawn): ${url}`);
     console.log(`Mode: ${mode}, Quality: ${quality}, Format: ${format}`);

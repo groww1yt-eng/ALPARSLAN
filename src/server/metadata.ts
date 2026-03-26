@@ -67,6 +67,17 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
     // Basic User-Agent spoofing to avoid default python-requests blocking
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
     
+    // Inject PO Token and Visitor Data for anti-bot bypass if configured in env
+    const poToken = process.env.YOUTUBE_PO_TOKEN;
+    const visitorData = process.env.VISITOR_DATA;
+    if (poToken || visitorData) {
+      let extArgs = 'youtube:player_client=web,android,ios';
+      if (poToken) extArgs += `;po_token=${poToken}`;
+      if (visitorData) extArgs += `;visitor_data=${visitorData}`;
+      ytdlpArgs.push('--extractor-args', extArgs);
+      console.log(`[DEBUG] Applied extractor-args with PO Token: ${!!poToken}, Visitor Data: ${!!visitorData}`);
+    }
+    
     ytdlpArgs.push(url);
 
     console.log(`[DEBUG] Executing yt-dlp to fetch metadata for ${url}`);
