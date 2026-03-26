@@ -92,10 +92,14 @@ export async function getFileSize(url: string, mode: 'video' | 'audio', quality:
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     // Inject PO Token and Visitor Data if in env (crucial for live server bypass)
-    const poToken = process.env.YOUTUBE_PO_TOKEN;
-    const visitorData = process.env.VISITOR_DATA;
+    const rawPoToken = process.env.YOUTUBE_PO_TOKEN;
+    const rawVisitorData = process.env.VISITOR_DATA;
+    
+    const poToken = rawPoToken ? decodeURIComponent(rawPoToken) : null;
+    const visitorData = rawVisitorData ? decodeURIComponent(rawVisitorData) : null;
+
     if (poToken || visitorData) {
-      let extArgs = 'youtube:player_client=web,android,ios';
+      let extArgs = 'youtube:player_client=ios,android,web';
       if (poToken) extArgs += `;po_token=${poToken}`;
       if (visitorData) extArgs += `;visitor_data=${visitorData}`;
       ytdlpArgs.push('--extractor-args', extArgs);
@@ -286,10 +290,14 @@ export async function downloadVideo(options: DownloadOptions): Promise<DownloadR
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
 
     // Inject PO Token and Visitor Data if in env (crucial for live server bypass)
-    const poToken = process.env.YOUTUBE_PO_TOKEN;
-    const visitorData = process.env.VISITOR_DATA;
+    const rawPoToken = process.env.YOUTUBE_PO_TOKEN;
+    const rawVisitorData = process.env.VISITOR_DATA;
+    
+    const poToken = rawPoToken ? decodeURIComponent(rawPoToken) : null;
+    const visitorData = rawVisitorData ? decodeURIComponent(rawVisitorData) : null;
+
     if (poToken || visitorData) {
-      let extArgs = 'youtube:player_client=web,android,ios';
+      let extArgs = 'youtube:player_client=ios,android,web';
       if (poToken) extArgs += `;po_token=${poToken}`;
       if (visitorData) extArgs += `;visitor_data=${visitorData}`;
       ytdlpArgs.push('--extractor-args', extArgs);

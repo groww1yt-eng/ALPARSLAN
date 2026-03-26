@@ -68,14 +68,20 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata | nul
     ytdlpArgs.push('--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
     
     // Inject PO Token and Visitor Data for anti-bot bypass if configured in env
-    const poToken = process.env.YOUTUBE_PO_TOKEN;
-    const visitorData = process.env.VISITOR_DATA;
+    // We auto-decode them in case they were pasted with URL-encoding (e.g. %3D%3D instead of ==)
+    const rawPoToken = process.env.YOUTUBE_PO_TOKEN;
+    const rawVisitorData = process.env.VISITOR_DATA;
+    
+    const poToken = rawPoToken ? decodeURIComponent(rawPoToken) : null;
+    const visitorData = rawVisitorData ? decodeURIComponent(rawVisitorData) : null;
+
     if (poToken || visitorData) {
-      let extArgs = 'youtube:player_client=web,android,ios';
+      // Using mobile clients (ios, android) alongside web is more reliable for datacenter IPs
+      let extArgs = 'youtube:player_client=ios,android,web';
       if (poToken) extArgs += `;po_token=${poToken}`;
       if (visitorData) extArgs += `;visitor_data=${visitorData}`;
       ytdlpArgs.push('--extractor-args', extArgs);
-      console.log(`[DEBUG] Applied extractor-args with PO Token: ${!!poToken}, Visitor Data: ${!!visitorData}`);
+      console.log(`[DEBUG] Applied extractor-args (ios/android/web) with PO Token: ${!!poToken}, Visitor Data: ${!!visitorData}`);
     }
     
     ytdlpArgs.push(url);
